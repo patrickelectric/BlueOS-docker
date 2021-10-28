@@ -8,6 +8,8 @@ ROOT="$REMOTE/$VERSION"
 # Exit immediately if a command exits with a non-zero status
 set -e
 
+lscpu
+
 # Check if the script is running in ARM architecture
 [[ "$(uname -m)" != "arm"* ]] && (
     echo "Companion only supports ARM computers."
