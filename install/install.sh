@@ -8,10 +8,6 @@ ROOT="$REMOTE/$VERSION"
 # Exit immediately if a command exits with a non-zero status
 set -e
 
-lscpu
-cat /etc/cpuinfo
-uname -a
-
 # Check if the script is running in ARM architecture
 [[ "$(uname -m)" != "arm"* ]] && (
     echo "Companion only supports ARM computers."
@@ -52,7 +48,7 @@ docker --version || curl -fsSL https://get.docker.com | env -u VERSION sh || (
     echo "Please report this problem."
     exit 1
 )
-systemctl enable docker
+[[ -v RUNNING_QEMU ]] && dockerd || systemctl enable docker
 
 # Stop and remove all docker if NO_CLEAN is not defined
 test $NO_CLEAN || (
