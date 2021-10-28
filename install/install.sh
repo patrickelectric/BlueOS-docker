@@ -9,6 +9,8 @@ ROOT="$REMOTE/$VERSION"
 set -e
 
 lscpu
+cat /etc/cpuinfo
+uname -a
 
 # Check if the script is running in ARM architecture
 [[ "$(uname -m)" != "arm"* ]] && (
