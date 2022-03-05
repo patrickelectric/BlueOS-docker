@@ -198,11 +198,13 @@ jobs:
             --tag ${DOCKER_IMAGE}:${GIT_HASH_SHORT} \
             --output "type=docker,dest=blueos-core-${GIT_HASH_SHORT}.tar" \
 
+      # Docker only accepts tar files, it's necessary to unpack it first
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         if: success() && matrix.docker == 'core'
         with:
-          path: '*.tar'
+          name: blueos-core-${GIT_HASH_SHORT}.zip
+          path: blueos-core-${GIT_HASH_SHORT}.tar
 
       - name: Upload docker image for release
         uses: svenstaro/upload-release-action@v2
