@@ -203,8 +203,8 @@ jobs:
         uses: actions/upload-artifact@v2
         if: success() && matrix.docker == 'core'
         with:
-          name: blueos-core-${GIT_HASH_SHORT}.zip
-          path: blueos-core-${GIT_HASH_SHORT}.tar
+          name: blueos-core-docker-image.zip
+          path: 'blueos-core-*.tar'
 
       - name: Upload docker image for release
         uses: softprops/action-gh-release@v1
