@@ -217,6 +217,7 @@ jobs:
         if: success() && startsWith(github.ref, 'refs/tags/') && matrix.docker == 'core'
         with:
           files: 'BlueOS-core-*.tar'
+          prerelease: true
 
 
   deploy-raspberry-image:
@@ -269,9 +270,9 @@ jobs:
 
       - name: Upload raspberry image for release
         uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
+        if: success() && startsWith(github.ref, 'refs/tags/')
         with:
-          file: 'BlueOS-*.zip'
+          files: 'BlueOS-*.zip'
           prerelease: true
 
       # This is required because docker has root permissions, which means the runner is unable to clear this cache normally
