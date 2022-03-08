@@ -231,13 +231,11 @@ jobs:
       # We use our own pimod as upstream doesn't provide armv7 images
       - name: Pimod Build
         run: |
-          VERSION=$GITHUB_REPOSITORY
-          VERSION=${VERSION:-master}
           wget https://raw.githubusercontent.com/williangalvani/pimod/master/pimod.sh && chmod +x pimod.sh
           docker run --rm --privileged \
             -v $PWD:/files \
             -e PATH=/pimod:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
-            -e GITHUB_REPOSITORY=$GITHUB_REPOSITORY \
+            -e GITHUB_REPOSITORY=bluerobotics/BlueOS-docker \
             -e VERSION=master \
             --workdir=/files \
             --platform ${{ matrix.platforms }} williangalvani/pimod:latest pimod.sh deploy/pimod/blueos.Pifile
