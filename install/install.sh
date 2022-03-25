@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Set desired version to be installed
-VERSION="${VERSION2:-master}"
+VERSION="${VERSION:-master}"
 GITHUB_REPOSITORY=${GITHUB_REPOSITORY:-bluerobotics/blueos-docker}
 REMOTE="${REMOTE:-https://raw.githubusercontent.com/${GITHUB_REPOSITORY}}"
 ROOT="$REMOTE/$VERSION"
@@ -163,8 +163,8 @@ sed -i '/noipv4ll/d' /etc/dhcpcd.conf
 sed -i '$ a noipv4ll' /etc/dhcpcd.conf
 
 echo "Downloading bootstrap"
-BLUEOS_BOOTSTRAP="bluerobotics/blueos-bootstrap:master" # Use current version
-BLUEOS_CORE="bluerobotics/blueos-core:master" # We don't have a stable tag yet
+BLUEOS_BOOTSTRAP="patrickelectric/blueos-bootstrap:$VERSION" # Use current version
+BLUEOS_CORE="patrickelectric/blueos-core:$VERSION" # We don't have a stable tag yet
 BLUEOS_FACTORY="bluerobotics/blueos-core:factory" # used for "factory reset"
 
 docker pull $BLUEOS_BOOTSTRAP
