@@ -178,6 +178,9 @@ export default Vue.extend({
     start(): void {
       // eslint-disable-next-line
       this.series = Object.assign({}, {upload: [], download: []})
+      this.series.upload.length = 100
+      // this.series.upload.length = 10000
+      // this.series.download.length = 10000
       this.updateState(State.DownloadSpeed)
     },
     clearSpeed(): void {
@@ -242,28 +245,26 @@ export default Vue.extend({
         data: this.upload_buffer,
         onUploadProgress: (progress_event) => {
           if (start_time === undefined) {
-            start_time = new Date().getTime()
+            start_time = window.performance.now()
             return
           }
-          const seconds = differenceInMilliseconds(new Date().getTime(), start_time) * 1e-3
+          const seconds = differenceInMilliseconds(window.performance.now(), start_time) * 1e-3
           const speed_Mb = 8 * (progress_event.loaded / seconds / 2 ** 20)
           const alpha_factor = 0.7
           this.upload_speed = (this.upload_speed ?? 0) * (1 - alpha_factor) + alpha_factor * speed_Mb
           const percentage = 100 * (progress_event.loaded / progress_event.total)
           this.series.upload.push({ x: percentage, y: this.upload_speed })
-          // Force vue update
-          // eslint-disable-next-line
-          this.series = Object.assign({}, this.series)
-          console.debug(
-            `network-test: Upload: ${speed_Mb.toFixed(2)}Mbps ${percentage.toFixed(2)}% ${seconds.toFixed(2)}s`,
-          )
           this.setSpeed(speed_Mb)
         },
       }).catch((error) => {
         const message = `Failed to do speed test: ${error.message}`
         notifier.pushError('NETWORK_SPEED_TEST_UPLOAD', message)
         console.error(message)
-      }).finally(() => this.updateState(State.Done))
+      }).finally(() => {
+        // eslint-disable-next-line
+        this.series = Object.assign({}, this.series)
+        this.updateState(State.Done)
+      })
     },
     checkDownloadSpeed(): void {
       const one_hundred_mega_bytes = 100 * 2 ** 20
@@ -275,32 +276,30 @@ export default Vue.extend({
         timeout: 20000,
         data: {
           size: one_hundred_mega_bytes,
-          avoid_cache: new Date().getTime(),
+          avoid_cache: window.performance.now(),
         },
         onDownloadProgress: (progress_event) => {
           if (start_time === undefined) {
-            start_time = new Date().getTime()
+            start_time = window.performance.now()
             return
           }
-          const seconds = differenceInMilliseconds(new Date().getTime(), start_time) * 1e-3
+          const seconds = differenceInMilliseconds(window.performance.now(), start_time) * 1e-3
           const speed_Mb = 8 * (progress_event.loaded / seconds / 2 ** 20)
           const alpha_factor = 0.7
           this.download_speed = (this.download_speed ?? 0) * (1 - alpha_factor) + alpha_factor * speed_Mb
           const percentage = 100 * (progress_event.loaded / progress_event.total)
           this.series.download.push({ x: percentage, y: this.download_speed })
-          // Force vue update
-          // eslint-disable-next-line
-          this.series = Object.assign({}, this.series)
-          console.debug(
-            `network-test: Download: ${speed_Mb.toFixed(2)}Mbps ${percentage.toFixed(2)}% ${seconds.toFixed(2)}s`,
-          )
           this.setSpeed(speed_Mb)
         },
       }).catch((error) => {
         const message = `Failed to do speed test: ${error.message}`
         notifier.pushError('NETWORK_SPEED_TEST_DOWNLOAD', message)
         console.error(message)
-      }).finally(() => this.updateState(State.UploadSpeed))
+      }).finally(() => {
+        // eslint-disable-next-line
+        this.series = Object.assign({}, this.series)
+        this.updateState(State.UploadSpeed)
+      })
     },
   },
 })
