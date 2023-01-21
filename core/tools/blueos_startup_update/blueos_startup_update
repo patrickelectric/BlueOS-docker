@@ -10,6 +10,10 @@ import time
 DELTA_JSON = {
     'core': {
         'binds': {
+            '/usr/cockpit/bin': {
+                'bind': '/usr/cockpit/bin',
+                'mode': 'rw'
+            },
             '/run/udev': {
                 'bind': '/run/udev',
                 'mode': 'ro'
