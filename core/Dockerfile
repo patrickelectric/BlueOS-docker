@@ -64,5 +64,8 @@ RUN [ -z "$GIT_DESCRIBE_TAGS" ] \
 RUN RCFILE_PATH="/etc/blueosrc" \
     && echo "export GIT_DESCRIBE_TAGS=$GIT_DESCRIBE_TAGS" >> $RCFILE_PATH
 
+# Folder to be used to share executables between host and docker
+RUN mkdir -p /usr/cockpit/bin
+
 # Start
 CMD /bin/bash -i /usr/bin/start-blueos-core && sleep infinity
