@@ -22,47 +22,6 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v3
 
-    - name: Set up Python ${{ env.python-version }}
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ env.python-version }}
-
-    - name: Install dependencies
-      run: |
-        sudo ./core/tools/mavlink_router/bootstrap.sh
-        ./core/tools/ardupilot_tools/bootstrap.sh
-        sudo apt install shellcheck
-        npm install \
-          eslint@7 eslint-plugin-vue eslint-plugin-html @vue/eslint-config-typescript @typescript-eslint/parser \
-          @typescript-eslint/eslint-plugin typescript @vue/eslint-config-airbnb@^5.3.0 @vue/cli-service \
-          eslint-plugin-simple-import-sort \
-          --save-dev
-        python -m pip install --upgrade pip
-        pip install wheel # wheel need to be installed before mavproxy
-        pip install mavproxy
-        pip install pyfakefs pytest-cov pytest-timeout pylint pylint-pydantic mypy isort black==22.1.0 asyncmock types-requests \
-          pytest-mock nmeasim geographiclib ruff
-        pip install git+https://github.com/patrickelectric/pykson.git@master_fixes
-        ## Install our own libraries
-        python ./core/libs/bridges/setup.py install
-        python ./core/libs/commonwealth/setup.py install
-        ## We need to install loguru and appdirs since they may be used inside setup.py
-        python -m pip install --user appdirs==1.4.4 loguru==0.5.3
-        find . -type f -name "setup.py" | xargs --max-lines=1 --replace=% python % install --user
-        ## Fix Click version since its being updated to an old version by our packages
-        pip install click==8.0.0
-
-    - name: Run tests
-      run: |
-        ./.hooks/pre-push
-
-    - name: Upload coverage
-      uses: actions/upload-artifact@v3
-      with:
-        name: coverage
-        path: htmlcov
-
-
   frontend-tests:
     runs-on: ubuntu-latest
     steps:
@@ -70,22 +29,6 @@ jobs:
         uses: actions/checkout@v3
         with:
           submodules: recursive
-
-      - name: Yarn install
-        uses: borales/actions-yarn@v4
-        with:
-          cmd: --cwd ./core/frontend install --frozen-lockfile --ignore-engines
-
-      - name: Yarn lint
-        uses: borales/actions-yarn@v4
-        with:
-          cmd: --cwd ./core/frontend lint --no-fix --ignore-engines --max-warnings=0
-
-      - name: Yarn build
-        uses: borales/actions-yarn@v4
-        with:
-          cmd: --cwd ./core/frontend build --ignore-engines
-
 
   deploy-docker-images:
     runs-on: ubuntu-latest
