@@ -1,4 +1,4 @@
-# BlueOS
+# BlueOS potato
 
 [![Test, Build and Deploy Images](https://github.com/bluerobotics/BlueOS-docker/actions/workflows/test-and-deploy.yml/badge.svg)](https://github.com/bluerobotics/BlueOS-docker/actions/workflows/test-and-deploy.yml)
 ![Downloads](https://img.shields.io/github/downloads/bluerobotics/blueos-docker/total?label=Downloads)
