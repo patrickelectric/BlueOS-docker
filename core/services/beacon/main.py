@@ -28,6 +28,14 @@ SERVICE_NAME = "beacon"
 limit_ram_usage()
 
 
+def convert_vehicle_name(name: str) -> str:
+    # Convert utf-8 characters to ascii, E.g: "Rüsty's ROV" -> "Rusty's ROV"
+    name = unidecode.unidecode(name)
+    # Replace non alphanumeric characters with _, "Rusty's ROV" -> "Rusty_s_ROV"
+    name = re.sub(r'\W+', '_', name)
+    return name
+
+
 class AsyncRunner:
     def __init__(self, ip_version: IPVersion, interface: str, interface_name: str) -> None:
         self.ip_version = ip_version
@@ -207,7 +215,7 @@ class Beacon:
         for interface_name in self.get_filtered_interfaces():
             interface = self.settings.get_interface_or_create_default(interface_name)
             for ip in interface.get_ip_strs():
-                for domain in interface.domain_names:
+                for domain in interface.domain_names + [convert_vehicle_name(self.get_vehicle_name())]:
                     runner = None
                     try:
                         runner = AsyncRunner(IPVersion.V4Only, interface=ip, interface_name=interface_name)
