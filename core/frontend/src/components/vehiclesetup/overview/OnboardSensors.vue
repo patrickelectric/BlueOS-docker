@@ -27,84 +27,52 @@
           </thead>
           <tbody>
             <tr
-              v-for="imu in imus"
-              :key="imu.param"
+              v-for="(sensor, index) in sensors"
+              :key="`${sensor.deviceName}-${index}`"
             >
-              <td><b>{{ imu.deviceName ?? 'UNKNOWN' }}</b></td>
-              <td v-tooltip="'Inertial Navigation Sensor'">
-                INS
+              <td><b>{{ sensor.deviceName ?? 'UNKNOWN' }}</b></td>
+              <td v-tooltip="sensor.typeTooltip">
+                {{ sensor.type }}
               </td>
-              <td>{{ imu.busType }} {{ imu.bus }}</td>
-              <td>{{ `0x${imu.address}` }}</td>
+              <td>{{ sensor.bus }}</td>
+              <td>{{ sensor.address }}</td>
               <td>
-                <v-icon
-                  v-if="imu_is_calibrated[imu.param]"
-                  v-tooltip="'Sensor is callibrated and good to use'"
-                  color="green"
-                >
-                  mdi-emoticon-happy-outline
-                </v-icon>
-                <v-icon
-                  v-else
-                  v-tooltip="'Sensor needs to be calibrated'"
-                  color="red"
-                >
-                  mdi-emoticon-sad-outline
-                </v-icon>
-                <v-icon
-                  v-if="imu_temperature_is_calibrated[imu.param]"
-                  v-tooltip="'Sensor thermometer is calibrated and good to use'"
-                  color="green"
-                >
-                  mdi-thermometer-check
-                </v-icon>
-                <v-icon
-                  v-else
-                  v-tooltip="'Sensor thermometer needs to be calibrated'"
-                  color="red"
-                >
-                  mdi-thermometer-off
-                </v-icon>
+                <nobr v-if="typeof sensor.status == 'string'">
+                  {{ sensor.status }}
+                </nobr>
+                <nobr v-else>
+                  <v-icon
+                    v-if="sensor.status.calibrated"
+                    v-tooltip="'Sensor is callibrated and good to use'"
+                    color="green"
+                  >
+                    mdi-emoticon-happy-outline
+                  </v-icon>
+                  <v-icon
+                    v-else
+                    v-tooltip="'Sensor needs to be calibrated'"
+                    color="red"
+                  >
+                    mdi-emoticon-sad-outline
+                  </v-icon>
+                  <nobr v-if="sensor.status.thermometerCalibrated !== undefined">
+                    <v-icon
+                      v-if="sensor.status.thermometerCalibrated"
+                      v-tooltip="'Sensor thermometer is calibrated and good to use'"
+                      color="green"
+                    >
+                      mdi-thermometer-check
+                    </v-icon>
+                    <v-icon
+                      v-else
+                      v-tooltip="'Sensor thermometer needs to be calibrated'"
+                      color="red"
+                    >
+                      mdi-thermometer-off
+                    </v-icon>
+                  </nobr>
+                </nobr>
               </td>
-            </tr>
-            <tr
-              v-for="compass in compasses"
-              :key="compass.param"
-            >
-              <td><b>{{ compass.deviceName ?? 'UNKNOWN' }}</b></td>
-              <td>
-                {{ compass_description[compass.param] }}
-              </td>
-              <td>{{ compass.busType }} {{ compass.bus }}</td>
-              <td>{{ `0x${compass.address}` }}</td>
-              <td>
-                <v-icon
-                  v-if="compass_is_calibrated[compass.param]"
-                  v-tooltip="'Sensor is callibrated and good to use'"
-                  color="green"
-                >
-                  mdi-emoticon-happy-outline
-                </v-icon>
-                <v-icon
-                  v-else
-                  v-tooltip="'Sensor needs to be calibrated'"
-                  color="red"
-                >
-                  mdi-emoticon-sad-outline
-                </v-icon>
-              </td>
-            </tr>
-            <tr
-              v-for="baro in baros"
-              :key="baro.param"
-            >
-              <td><b>{{ baro.deviceName ?? 'UNKNOWN' }}</b></td>
-              <td v-tooltip="'Used to estimate altitude/depth'">
-                {{ get_pressure_type[baro.param] }} Pressure
-              </td>
-              <td>{{ baro.busType }} {{ baro.bus }}</td>
-              <td>{{ `0x${baro.address}` }}</td>
-              <td>{{ baro_status[baro.param] }}</td>
             </tr>
           </tbody>
         </template>
@@ -124,9 +92,58 @@ import { Dictionary } from '@/types/common'
 import decode, { deviceId } from '@/utils/deviceid_decoder'
 import mavlink_store_get from '@/utils/mavlink'
 
+interface SensorCalibrationStatus {
+  calibrated: boolean,
+  thermometerCalibrated?: boolean,
+}
+
+interface SensorInfo {
+  deviceName: string,
+  type: string,
+  bus: string,
+  address: string,
+  status: SensorCalibrationStatus | string
+}
+
 export default Vue.extend({
   name: 'OnboardSensors',
   computed: {
+    sensors(): SensorInfo[] {
+      const imus = this.imus.map((imu) => ({
+        deviceName: imu.deviceName,
+        type: 'INS',
+        typeTooltip: 'Inertial Navigation Sensor',
+        bus: `${imu.busType} ${imu.bus}`,
+        address: `0x${imu.address}`,
+        status: {
+          calibrated: this.imu_is_calibrated[imu.param],
+          thermometerCalibrated: this.imu_temperature_is_calibrated[imu.param],
+        },
+      }))
+
+      const compasses = this.compasses.map((compass) => ({
+        deviceName: compass.deviceName,
+        type: this.compass_description[compass.param],
+        typeTooltip: 'Inertial Navigation Sensor',
+        bus: `${compass.busType} ${compass.bus}`,
+        address: `0x${compass.address}`,
+        status: {
+          calibrated: this.compass_is_calibrated[compass.param],
+          thermometerCalibrated: undefined,
+        },
+      }))
+
+      const baros = this.baros.map((baro) => ({
+        deviceName: baro.deviceName,
+        type: `${this.get_pressure_type[baro.param]} Pressure`,
+        typeTooltip: 'Inertial Navigation Sensor',
+        bus: `${baro.busType} ${baro.bus}`,
+        address: `0x${baro.address}`,
+        status: this.baro_status[baro.param],
+      }))
+
+      return [...imus, ...compasses, ...baros]
+    },
     imus() : deviceId[] {
       return autopilot_data.parameterRegex('^INS_ACC.*_ID')
         .filter((param) => param.value !== 0)
