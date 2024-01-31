@@ -82,7 +82,7 @@ def log_sink(file: Path) -> Callable[[Message], None]:
 def init_logger(service_name: str) -> None:
     try:
         sink = log_sink(get_new_log_path(service_name))
-        logger.add(sink, rotation="10 MB")
+        logger.add(sink=sink, rotation="10 MB")
     except Exception as e:
         print(f"Error: unable to set logging path: {e}")
 
