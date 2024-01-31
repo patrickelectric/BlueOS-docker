@@ -3,9 +3,10 @@ from datetime import datetime, timezone
 from logging import LogRecord
 from pathlib import Path
 from types import FrameType
-from typing import Any, Optional, TextIO, Union
+from typing import Any, Callable, Optional, TextIO, Union
 
-from loguru import logger
+from general import available_disk_space_mb
+from loguru import Message, logger
 
 
 class LogRotator:
@@ -59,9 +60,29 @@ def get_new_log_path(service_name: str) -> Path:
     return service_log_folder.joinpath(f"logfile_{datetime_now}.log")
 
 
+def log_sink(file: Path) -> Callable[[Message], None]:
+    no_space = False
+
+    def sink(message: Message) -> None:
+        nonlocal no_space
+        if no_space:
+            return
+
+        limit_size_mb = 200
+        if available_disk_space_mb < limit_size_mb:
+            with open(file, "a", encoding="utf-8") as log_file:
+                log_file.write(str(message))
+        else:
+            print("Low disk space. Skipping log write.")
+            no_space = True
+
+    return sink
+
+
 def init_logger(service_name: str) -> None:
     try:
-        logger.add(get_new_log_path(service_name), rotation="10 MB")
+        sink = log_sink(get_new_log_path(service_name))
+        logger.add(sink, rotation="10 MB")
     except Exception as e:
         print(f"Error: unable to set logging path: {e}")
 
