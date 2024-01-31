@@ -113,5 +113,5 @@ def device_id() -> str:
 
 
 @temporary_cache(timeout_seconds=600)
-def available_disk_space_mb() -> int:
+def available_disk_space_mb() -> float:
     return psutil.disk_usage("/").free / (2**20)
