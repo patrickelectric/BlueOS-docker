@@ -4,7 +4,7 @@
 set -e
 
 BINARY_NAME="mavp2p"
-VERSION="v1.1.1"
+VERSION="v1.2.1"
 GITHUB_REMOTE="https://github.com/bluenviron/mavp2p"
 
 if [ "$RUNNING_IN_CI" ]; then
