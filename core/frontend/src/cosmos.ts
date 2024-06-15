@@ -3,6 +3,7 @@ export {}
 declare global {
     interface Array<T> {
         first(): T | undefined;
+        last(): T | undefined;
         isEmpty(): boolean;
     }
 
@@ -15,7 +16,12 @@ declare global {
 
 // eslint-disable-next-line
 Array.prototype.first = function<T> (this: T[]): T | undefined {
-  return this.isEmpty() ? undefined : this[0]
+  return this[0]
+}
+
+// eslint-disable-next-line
+Array.prototype.last = function<T> (this: T[]): T | undefined {
+  return this.at(-1)
 }
 
 // eslint-disable-next-line

@@ -1,8 +1,8 @@
 import asyncio
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Set
 
 from loguru import logger
-from serial import Serial
+from serial.tools.list_ports_linux import SysFS
 
 from ping1d_driver import Ping1DDriver
 from ping360_driver import Ping360Driver
@@ -14,12 +14,13 @@ from pingutils import PingDeviceDescriptor, PingType, udp_port_is_in_use
 class PingManager:
     def __init__(self) -> None:
         self.drivers: Dict[PingDeviceDescriptor, PingDriver] = {}
+        self.connecting_ports: Set[int] = set()
         self.ping1d_base_port: int = 9090
         self.ping360_base_port: int = 9092
 
-    def stop_driver_at_port(self, port: Serial) -> None:
+    def stop_driver_at_port(self, port: SysFS | str) -> None:
         """Stops the driver instance running for port "port" """
-        ping_at_port = [ping for ping in self.drivers if ping.port == port]
+        ping_at_port = [ping for ping in self.drivers if port in [ping.port, ping.ethernet_discovery_info]]
         if ping_at_port:
             self.drivers[ping_at_port[0]].stop()
             del self.drivers[ping_at_port[0]]
@@ -34,7 +35,8 @@ class PingManager:
         Starts at 'base_port' and increments/decrements by 'step'.
         """
         port = base_port
-        while udp_port_is_in_use(port):
+        # Order set to minimise chance of a race condition
+        while udp_port_is_in_use(port) or (port in self.connecting_ports):
             port += step
             await asyncio.sleep(0.1)
         return port
@@ -45,10 +47,12 @@ class PingManager:
         if ping.ping_type == PingType.PING1D:
             logger.info("Launching ping1d driver")
             port = await self.find_next_port(self.ping1d_base_port, step=-1)
+            self.connecting_ports.add(port)  # Claim now, to prevent race
             driver = Ping1DDriver(ping, port)
         elif ping.ping_type == PingType.PING360:
             logger.info("Launching ping360 driver")
             port = await self.find_next_port(self.ping360_base_port, step=+1)
+            self.connecting_ports.add(port)  # Claim now, to prevent race
             driver = Ping360Driver(ping, port)
 
         self.drivers[ping] = driver

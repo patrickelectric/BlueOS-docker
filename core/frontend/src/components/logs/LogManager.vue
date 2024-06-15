@@ -134,13 +134,14 @@ export default Vue.extend({
     async fetchAvailableLogs(): Promise<void> {
       const new_logs: FilebrowserFile[] = []
 
-      const log_folders = ['/ardupilot_logs/firmware/logs/', '/system_logs/ardupilot-manager/']
+      const log_folders = ['/ardupilot_logs/firmware/logs/', '/ardupilot_logs/logs/']
 
       // We fetch all paths in parallel and wait for everything to finish
       // If it fails the folder does not exist, we display a 'No data available' message
       // If it succeeds, it'll populate the array and show the logs to the user
       try {
-        await Promise.all(log_folders.map(async (folder_path) => {
+        // Use allSettled to allow promises to fail in parallel
+        await Promise.allSettled(log_folders.map(async (folder_path) => {
           const folder = await filebrowser.fetchFolder(folder_path)
           Array.prototype.push.apply(new_logs, folder.items)
         }))
@@ -150,7 +151,10 @@ export default Vue.extend({
       }
 
       this.logs_fetched = true
-      this.available_logs = new_logs.filter((log) => ['.bin', '.tlog'].includes(log.extension.toLowerCase()))
+      // We can have empty log files or really small, we should remove them
+      this.available_logs = new_logs.filter(
+        (log) => ['.bin', '.tlog'].includes(log.extension.toLowerCase()) && log.size > 100,
+      )
     },
     downloadSelectedLogs(): void {
       this.downloadLogs(this.selected_logs)

@@ -43,28 +43,62 @@
                   v-model="selected_version"
                   :items="available_tags"
                   label="Version"
-                />
+                >
+                  <template #item="{ item }">
+                    <v-tooltip :disabled="item.active" bottom>
+                      <template #activator="{ on, attrs }">
+                        <div
+                          style="width: 100%;"
+                          :style="item.active ? '' : 'opacity: 0.5;'"
+                          v-bind="attrs"
+                          v-on="on"
+                        >
+                          <v-list-item-content>
+                            <v-list-item-title v-text="item.text" />
+                          </v-list-item-content>
+                        </div>
+                      </template>
+                      <span>This version is not compatible with current machine running BlueOS</span>
+                    </v-tooltip>
+                  </template>
+                </v-select>
               </v-col>
-
               <v-col class="text-center">
-                <v-btn
-                  v-if="installed === selected_version"
-                  class="mt-3"
-                  disabled
-                  color="primary"
-                >
-                  Installed
-                </v-btn>
-                <v-btn
-                  v-else
-                  class="mt-3"
-                  color="primary"
-                  @click="$emit('clicked', selected_version)"
-                >
-                  Install
-                </v-btn>
+                <v-tooltip :disabled="extension.is_compatible" bottom>
+                  <template #activator="{ on, attrs }">
+                    <v-btn
+                      class="mt-3"
+                      :disabled="!extension.is_compatible || !is_version_compatible"
+                      color="primary"
+                      v-bind="attrs"
+                      v-on="on"
+                      @click="$emit('clicked', extension.identifier, selected_version, is_installed)"
+                    >
+                      {{ is_installed ? 'Uninstall' : 'Install' }}
+                    </v-btn>
+                  </template>
+                  <span>No versions available for this architecture</span>
+                </v-tooltip>
               </v-col>
             </v-row>
+            <span
+              v-if="!extension.is_compatible || !is_version_compatible"
+            >
+              <h3
+                class="ma-2"
+              >
+                Compatible only with:
+              </h3>
+              <v-chip
+                v-for="arch in compatible_version_archs"
+                :key="arch"
+                class="mr-1 mb-1"
+                density="compact"
+                size="x-small"
+              >
+                {{ arch }}
+              </v-chip>
+            </span>
             <h3
               v-if="selected?.website"
               class="ma-2"
@@ -143,6 +177,7 @@
 
 <script lang="ts">
 import { marked } from 'marked'
+import { compare } from 'semver'
 import Vue, { PropType } from 'vue'
 
 import { JSONValue } from '@/types/common'
@@ -177,8 +212,11 @@ export default Vue.extend({
       // TODO: make sure we sanitize this
       return marked(this.selected.readme)
     },
-    available_tags(): string[] {
-      return Object.keys(this.extension?.versions ?? [])
+    available_tags(): {text: string, active: boolean}[] {
+      return this.getSortedTags().map((tag) => ({
+        text: tag,
+        active: this.extension?.versions[tag].images.some((image) => image.compatible),
+      }))
     },
     permissions(): (undefined | JSONValue) {
       if (!this.selected_version) {
@@ -190,16 +228,38 @@ export default Vue.extend({
       }
       return 'No permissions required'
     },
+    is_installed(): boolean {
+      return this.selected_version === this.installed
+    },
+    is_version_compatible(): boolean {
+      return this.extension.versions[this.selected_version]?.images.some((image) => image.compatible)
+    },
+    compatible_version_archs(): string[] {
+      const archs = [
+        ...new Set(
+          this.extension.versions[this.selected_version]
+            ?.images.map((image) => image.platform.architecture),
+        ),
+      ]
+
+      return archs
+    },
   },
   watch: {
     extension() {
-      const [first] = Object.keys(this.extension.versions) ?? ''
-      this.selected_version = first
+      this.selected_version = this.getLatestTag()
     },
   },
   mounted() {
-    const [first] = Object.keys(this.extension.versions) ?? ''
-    this.selected_version = first
+    this.selected_version = this.getLatestTag()
+  },
+  methods: {
+    getSortedTags(): string[] {
+      return Object.keys(this.extension.versions).sort((a, b) => compare(b, a))
+    },
+    getLatestTag(): string {
+      return this.getSortedTags()[0] ?? ''
+    },
   },
 })
 </script>

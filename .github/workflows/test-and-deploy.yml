@@ -119,12 +119,12 @@ jobs:
             --file ${{ matrix.docker }}/Dockerfile ./${{ matrix.docker }}" >> $GITHUB_OUTPUT
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
         with:
           platforms: all
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
         with:
           version: latest
 
@@ -162,7 +162,7 @@ jobs:
 
       - name: Login to DockerHub
         if: success() && github.event_name != 'pull_request'
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
@@ -248,8 +248,8 @@ jobs:
 
   deploy-raspberry-image:
     needs: deploy-docker-images
-    if: github.event_name != 'pull_request'
-    timeout-minutes: 120 # Detect if it gets into an infinite loop or some unexpected state
+    if: github.event_name != 'pull_request' && github.repository_owner == 'bluerobotics'
+    timeout-minutes: 180 # Detect if it gets into an infinite loop or some unexpected state
     runs-on: blueos-ci
     # The runner for this job is a Raspberry Pi OS Bullseye.
     # Just install docker (curl -sSL https://get.docker.com/ | sh) and follow the instructions for setting up a new runner in
@@ -273,14 +273,14 @@ jobs:
         run: |
           VERSION=$GITHUB_REPOSITORY
           VERSION=${VERSION:-master}
-          wget https://raw.githubusercontent.com/williangalvani/pimod/master/pimod.sh && chmod +x pimod.sh
+          wget https://raw.githubusercontent.com//Nature40/pimod/master/pimod.sh && chmod +x pimod.sh
           docker run --rm --privileged \
             -v $PWD:/files \
             -e PATH=/pimod:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
             -e GITHUB_REPOSITORY=$GITHUB_REPOSITORY \
             -e VERSION=$GITHUB_REF_NAME \
             --workdir=/files \
-            --platform ${{ matrix.platforms }} williangalvani/pimod:latest pimod.sh deploy/pimod/blueos.Pifile
+            --platform ${{ matrix.platforms }} nature40/pimod:latest pimod.sh deploy/pimod/blueos.Pifile
 
       # TODO: add GITHUB_REF_NAME after https://github.com/actions/upload-artifact/issues/231 is fixed
       # name: blueos-${{ env.GITHUB_REF_NAME }}.zip
@@ -292,6 +292,7 @@ jobs:
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3
+        timeout-minutes: 120
         with:
           # We use the .img to avoid a zip of a zip
           name: BlueOS-raspberry.zip

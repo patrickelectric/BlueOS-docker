@@ -56,6 +56,9 @@ const formatters = {
   PARAM_VALUE(message: M2R.ParamValue) {
     return `${message.param_id.join('')}: ${message.param_value}`
   },
+  SCALED_PRESSURE(message: M2R.ScaledPressure) {
+    return `${message.press_abs?.toFixed(2)}hPa at ${message.temperature / 100}c`
+  },
   STATUSTEXT(message: M2R.Statustext): string {
     return `${message.severity.type.replace('MAV_SEVERITY_', '')}: ${message.text.join('')}`
   },
@@ -72,5 +75,13 @@ export default function prettify(message: Message): string {
   if (message_type in formatters) {
     return `${message_type} - ${formatters[message_type](message)}`
   }
+
+  // There is no function that matches exactly the message
+  // Lets check if it's an enumeration of it
+  const function_name = Object.keys(formatters).filter((key) => new RegExp(`^${key}\\d+$`).test(message_type))?.first()
+  if (function_name) {
+    return `${message_type} - ${formatters[function_name](message)}`
+  }
+
   return message_type
 }

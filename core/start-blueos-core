@@ -3,6 +3,8 @@
 # Immediately exit on errors
 set -e
 
+echo "BlueOS ${GIT_DESCRIBE_TAGS}"
+
 BLUEOS_PATH=/home/pi
 SERVICES_PATH=$BLUEOS_PATH/services
 TOOLS_PATH=$BLUEOS_PATH/tools
@@ -15,8 +17,30 @@ MAV_COMPONENT_ID_ONBOARD_COMPUTER4=194
 # Enable Rust backtrace for all programs
 RUST_BACKTRACE=1
 
-# Update docker binds, if we need to restart, exit!
-blueos_startup_update
+RUN_AS_REGULAR_USER="sudo -u blueos"
+# Set BlueOS log folder
+BLUEOS_LOG_FOLDER_PATH="/var/logs/blueos"
+
+# The system may start with full disk, in this case resulting in an unstable behavior.
+# As an attempt to recover the system, lets delete the log files before current boot
+AVAILABLE_SPACE_MB=$(($(stat -f / --format="%a*%S/1024**2")))
+CRITICAL_SPACE_LIMIT_MB=100
+echo "Available disk space: ${AVAILABLE_SPACE_MB}MB"
+(( AVAILABLE_SPACE_MB < CRITICAL_SPACE_LIMIT_MB )) && (
+    LOG_FOLDER_SIZE=$(($(du -sm ${BLUEOS_LOG_FOLDER_PATH} | awk '{print $1}')))
+    echo "Not enough free space for the system to run, limit is: ${CRITICAL_SPACE_LIMIT_MB}MB"
+    echo "Going to delete the logs folder as an attempt to recover: ${LOG_FOLDER_SIZE}MB"
+    rm -rf "$BLUEOS_LOG_FOLDER_PATH/*"
+    echo "Done!"
+)
+
+TOTAL_RAM_MB=$(free -m | awk '/Mem:/ {print $2}')
+echo "Total RAM size: ${TOTAL_RAM_MB} MB"
+
+# Update docker binds and other boot-time settings, restarts if necessary
+if [ -z "${BLUEOS_DISABLE_STARTUP_UPDATE}" ]; then
+    blueos_startup_update.py || true  # We NEVER want to prevent booting
+fi
 
 # Set permission of docker unix socket file to be accessible by nginx
 if [ -e "/var/run/docker.sock" ]; then
@@ -38,12 +62,12 @@ fi
 # `/etc/resolv.conf`.
 # So for this to work, the container's `/etc/resolv.conf.host` file should be binded (read-only) to
 # the host's `/etc/resolv.conf`, for our system, it's configured in `bootstrap/startup.json.default`,
-# and a patch is added in `core/tools/blueos_startup_update` so systems with older bootstrap
+# and a patch is added in `core/tools/blueos_startup_update.py` so systems with older bootstrap
 # versions can also work with it.
 # One detail is that because docker uses `mount` to bind the host's file to the container's file,
 # if the file-descriptor of the file changes, the bind will be lost. To prevent this, the file being
 # binded must be a hard link to the actual `/etc/resolv.conf`, and that hard link file is the one
-# being binded. This hard link is being done in `core/tools/blueos_startup_update` as
+# being binded. This hard link is being done in `core/tools/blueos_startup_update.py` as
 # `/etc/resolv.conf.host`.
 # To briefly understand why it is necessary, when the docker starts a container, it generates
 # the container `/etc/resolv.conf` based on the host's one, or some docker configuration, however,
@@ -62,6 +86,13 @@ else
     echo "Waring: Using dockers's resolv.conf, this may cause DNS issues if the host's network configuration changes."
 fi
 
+# fix permissions for logging folders:
+# we need 777 in order for other users to be able to alter it
+find /var/logs/blueos -type d -exec chmod a+rw {} \;
+mkdir -p /usr/blueos/userdata/settings
+find /usr/blueos -type d -exec chmod a+rw {} \;
+find /usr/blueos -type f -exec chmod a+rw {} \;
+
 # These services have priority because they do the fundamental for the vehicle to work,
 # and by initializing them first we reduce the time users have to wait to control the vehicle.
 # From tests with QGC and Pi3, the reboot time was ~1min42s when not using this strategy,
@@ -69,26 +100,28 @@ fi
 # From that 1min30s, the startup time is about ~25s, and originally, ~37s, meaning that the
 # remaining (~65 seconds) is the docker shutting down, and the Linux booting up.
 PRIORITY_SERVICES=(
-    'autopilot',250,"nice --19 $SERVICES_PATH/ardupilot_manager/main.py"
-    'cable_guy',250,"$SERVICES_PATH/cable_guy/main.py"
-    'video',700,"nice --19 mavlink-camera-manager --default-settings BlueROVUDP --mavlink tcpout:127.0.0.1:5777 --gst-feature-rank omxh264enc=0,v4l2h264enc=250,x264enc=260 --log-path /var/logs/blueos/services/mavlink-camera-manager --verbose"
-    'mavlink2rest',250,"mavlink2rest --connect=udpin:127.0.0.1:14000 --server 0.0.0.0:6040 --system-id $MAV_SYSTEM_ID --component-id $MAV_COMPONENT_ID_ONBOARD_COMPUTER4"
+    'autopilot',0,"nice --19 $SERVICES_PATH/ardupilot_manager/main.py"
+    'cable_guy',0,"$SERVICES_PATH/cable_guy/main.py"
+    'video',0,"nice --19 mavlink-camera-manager --default-settings BlueROVUDP --mavlink tcpout:127.0.0.1:5777 --mavlink-system-id $MAV_SYSTEM_ID --gst-feature-rank omxh264enc=0,v4l2h264enc=250,x264enc=260 --log-path /var/logs/blueos/services/mavlink-camera-manager --verbose"
+    'mavlink2rest',0,"mavlink2rest --connect=udpin:127.0.0.1:14000 --server 0.0.0.0:6040 --system-id $MAV_SYSTEM_ID --component-id $MAV_COMPONENT_ID_ONBOARD_COMPUTER4"
 )
 
 SERVICES=(
+    # This services are not prioritized because they are not fundamental for the vehicle to work
+    'kraken',0,"nice -19 $SERVICES_PATH/kraken/main.py"
+    'wifi',0,"nice -19 $SERVICES_PATH/wifi/main.py --socket wlan0"
+    # This services are not as important as the others
     'beacon',250,"$SERVICES_PATH/beacon/main.py"
-    'kraken',250,"nice -19 $SERVICES_PATH/kraken/main.py"
-    'wifi',250,"nice -19 $SERVICES_PATH/wifi/main.py --socket wlan0"
-    'bridget',250,"nice -19 $SERVICES_PATH/bridget/main.py"
+    'bridget',0,"nice -19 $RUN_AS_REGULAR_USER $SERVICES_PATH/bridget/main.py"
     'commander',250,"$SERVICES_PATH/commander/main.py"
     'nmea_injector',250,"nice -19 $SERVICES_PATH/nmea_injector/nmea_injector/main.py"
     'helper',250,"$SERVICES_PATH/helper/main.py"
     'iperf3',250," iperf3 --server --port 5201"
-    'linux2rest',250,"linux2rest"
+    'linux2rest',250,"linux2rest --log-path /var/logs/blueos/services/linux2rest --log-settings netstat=30,platform=10,serial-ports=10,system-cpu=10,system-disk=30,system-info=10,system-memory=10,system-network=10,system-process=60,system-temperature=10,system-unix-time-seconds=10"
     'filebrowser',250,"nice -19 filebrowser --database /etc/filebrowser/filebrowser.db --baseurl /file-browser"
     'versionchooser',250,"$SERVICES_PATH/versionchooser/main.py"
     'pardal',250,"nice -19 $SERVICES_PATH/pardal/main.py"
-    'ping',250,"nice -19 $SERVICES_PATH/ping/main.py"
+    'ping',0,"nice -19 $RUN_AS_REGULAR_USER $SERVICES_PATH/ping/main.py"
     'user_terminal',0,"cat /etc/motd"
     'ttyd',250,'nice -19 ttyd -p 8088 sh -c "/usr/bin/tmux attach -t user_terminal || /usr/bin/tmux new -s user_terminal"'
     'nginx',250,"nice -18 nginx -g \"daemon off;\" -c $TOOLS_PATH/nginx/nginx.conf"
@@ -101,30 +134,88 @@ tmux -f /etc/tmux.conf start-server
 function create_service {
     tmux new -d -s "$1" || true
     SESSION_NAME="$1:0"
+    SERVICE_NAME="$1"
     local command="$2"  # Store the command as a string
     local memory_limit_mb=$3
 
+    if [ -n "${BLUEOS_DISABLE_MEMORY_LIMIT}" ]; then
+        memory_limit_mb=$TOTAL_RAM_MB
+    fi
+
     # Check if the service is disabled
     if [[ $BLUEOS_DISABLE_SERVICES == *"$1"* ]]; then
-        echo "Service $1 is disabled"
+        echo "Service: $1 is disabled"
         tmux send-keys -t $SESSION_NAME "echo 'Service $1 is disabled'; sleep infinity" C-m
         return
     fi
+    echo "Service: $NAME: $EXECUTABLE with memory limit: $memory_limit_mb MB"
 
     # Set all necessary environment variables for the new tmux session
-    for NAME in $(compgen -v | grep MAV_); do
+    for NAME in $(compgen -v | grep -e MAV_ -e BLUEOS_); do
         VALUE=${!NAME}
         tmux setenv -t $SESSION_NAME -g $NAME $VALUE
     done
 
     # Use run_service to start the service with the memory limit
-    tmux send-keys -t $SESSION_NAME "run-service '$command' $memory_limit_mb" C-m
+    tmux send-keys -t $SESSION_NAME "run-service '$SERVICE_NAME' '$command' $memory_limit_mb " C-m
 }
+
+ssh_command() {
+  ssh -i /root/.config/.ssh/id_rsa -o StrictHostKeyChecking=no pi@localhost "$1"
+}
+
+prepare_cgroups() {
+  # skip if ssh is not working
+  if ! ssh_command "echo 'SSH is working'"; then
+    echo "SSH is not working, skipping cgroups preparation"
+    return
+  fi
+  # Prepare cgroups for run-service.sh to use
+  # Get the Docker container's hash by its name
+  FULL_COMMAND="docker ps --no-trunc --filter name=blueos-core --format '{{.ID}}'"
+  CONTAINER_HASH=$(ssh_command "$FULL_COMMAND")
+  # Use the Docker container's hash to generate the path
+  FULL_PATH="system.slice/docker-$CONTAINER_HASH.scope"
+
+  # Remove the starting '0::' from FULL_PATH
+  FULL_PATH=${FULL_PATH#0::}
+  # Remove the leading '/'
+  FULL_PATH=${FULL_PATH#/}
+  echo "Docker cgroups root: $FULL_PATH"
+  # Export the full path
+  export DOCKER_CGROUP=$FULL_PATH
+
+  # populated cgroups cannot be changed, so, in order to enable subtree_control, 
+  # we need to create a new child cgroup andmove all processes of this cgroup to it
+  # (as only empty cgroups can be changed).
+
+  echo "Creating a new child cgroup..."
+  # Create a new child cgroup
+  DOCKER_CGROUP_PATH="/sys/fs/cgroup/$DOCKER_CGROUP"
+  mkdir $DOCKER_CGROUP_PATH/child_cgroup
+
+  echo "Moving all processes of this cgroup to the new child cgroup..."
+  # Move all processes of this cgroup to the new child cgroup
+  for PID in $(cat $DOCKER_CGROUP_PATH/cgroup.procs); do
+    echo $PID > $DOCKER_CGROUP_PATH/child_cgroup/cgroup.procs || echo "Failed to move PID $PID, it may be already dead"
+  done
+  echo "PIDs left in the original cgroup:"
+  if [ $(wc -l < $DOCKER_CGROUP_PATH/cgroup.procs) -eq 0 ]; then
+    echo "all PIDs moved successfully"
+  else
+    echo "some PIDs failed to move:"
+    cat $DOCKER_CGROUP_PATH/cgroup.procs
+  fi
+
+  echo "Enabling subtree_control..."
+  echo "+memory" > $DOCKER_CGROUP_PATH/cgroup.subtree_control && echo "subtree_control enabled"
+}
+
+prepare_cgroups
 
 echo "Starting high priority services.."
 for TUPLE in "${PRIORITY_SERVICES[@]}"; do
     IFS=',' read -r NAME MEMORY_LIMIT_MB EXECUTABLE <<< "$TUPLE"
-    echo "Service: $NAME: $EXECUTABLE with memory limit: $MEMORY_LIMIT_MB MB"
     create_service "$NAME" "$EXECUTABLE" "$MEMORY_LIMIT_MB"
 done
 
@@ -133,7 +224,6 @@ sleep 5
 echo "Starting other services.."
 for TUPLE in "${SERVICES[@]}"; do
     IFS=',' read -r NAME MEMORY_LIMIT_MB EXECUTABLE <<< "$TUPLE"
-    echo "Service: $NAME: $EXECUTABLE with memory limit: $MEMORY_LIMIT_MB MB"
     create_service "$NAME" "$EXECUTABLE" "$MEMORY_LIMIT_MB"
 done
 

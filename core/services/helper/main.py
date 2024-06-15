@@ -18,7 +18,6 @@ from commonwealth.utils.apis import GenericErrorHandlingRoute, PrettyJSONRespons
 from commonwealth.utils.decorators import temporary_cache
 from commonwealth.utils.general import (
     blueos_version,
-    limit_ram_usage,
     local_hardware_identifier,
     local_unique_identifier,
 )
@@ -34,8 +33,6 @@ from nginx_parser import parse_nginx_file
 
 SERVICE_NAME = "helper"
 SPEED_TEST: Optional[Speedtest] = None
-
-limit_ram_usage(200)
 
 logging.basicConfig(handlers=[InterceptHandler()], level=logging.DEBUG)
 try:
@@ -99,6 +96,7 @@ class ServiceMetadata(BaseModel):
     route: Optional[str]
     new_page: Optional[bool]
     extra_query: Optional[str]
+    avoid_iframes: Optional[bool]
     api: str
     sanitized_name: Optional[str]
 
@@ -229,8 +227,13 @@ class Helper:
         conn: Optional[Union[http.client.HTTPConnection, http.client.HTTPSConnection]] = None
         request_response = SimpleHttpResponse(status=None, decoded_data=None, as_json=None, timeout=False, error=None)
 
+        # Based on requests library
+        headers = {
+            "User-Agent": "python",
+            "Accept-Encoding": "gzip, deflate",
+            "Accept": "*/*",
+        }
         # Prepare the header for json request
-        headers = {}
         if try_json:
             headers["Accept"] = "application/json"
 
@@ -511,7 +514,7 @@ async def internet_download_speed() -> Any:
 async def internet_upload_speed() -> Any:
     if not SPEED_TEST:
         raise RuntimeError("SPEED_TEST not initialized, initialize server search.")
-    SPEED_TEST.upload()
+    SPEED_TEST.upload(pre_allocate=False)
     return SPEED_TEST.results.dict()
 
 

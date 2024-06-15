@@ -12,7 +12,7 @@ import appdirs
 import uvicorn
 from commonwealth.utils.apis import GenericErrorHandlingRoute
 from commonwealth.utils.commands import run_command
-from commonwealth.utils.general import delete_everything, limit_ram_usage
+from commonwealth.utils.general import delete_everything
 from commonwealth.utils.logs import InterceptHandler, init_logger
 from fastapi import FastAPI, HTTPException, status
 from fastapi.responses import HTMLResponse
@@ -20,9 +20,7 @@ from fastapi_versioning import VersionedFastAPI, version
 from loguru import logger
 
 SERVICE_NAME = "commander"
-LOG_FOLDER_PATH = "/var/logs/blueos"
-
-limit_ram_usage()
+LOG_FOLDER_PATH = os.environ.get("BLUEOS_LOG_FOLDER_PATH", "/var/logs/blueos")
 
 logging.basicConfig(handlers=[InterceptHandler()], level=0)
 init_logger(SERVICE_NAME)

@@ -102,21 +102,29 @@ class AbstractRouter(metaclass=abc.ABCMeta):
             *shlex.split(command), stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
         )
 
-        await asyncio.sleep(1)  # Non-blocking sleep
+        await asyncio.sleep(3)  # Non-blocking sleep
         if not await self.is_running():
-            raise MavlinkRouterStartFail("Failed to initialize Mavlink router")
+            _stdout, _strerr = await self._subprocess.communicate()
+            stdout = _stdout.decode("utf-8") if _stdout else "No stdout."
+            stderr = _strerr.decode("utf-8") if _strerr else "No stderr."
+            output = f"message: stdout: '{stdout}', stderr: '{stderr}'"
+            returncode = self._subprocess.returncode
+            raise MavlinkRouterStartFail(f"Failed to initialize Mavlink router, code: {returncode}, {output}")
         await self.start_house_keepers()
 
     async def exit(self) -> None:
         if await self.is_running():
             if self._subprocess is not None:
-                logger.error("terminate")
+                logger.warning("Terminating process")
                 self._subprocess.terminate()
-                await asyncio.sleep(1)  # Non-blocking sleep
+                logger.warning("Termination done")
+                await asyncio.sleep(3)  # Non-blocking sleep
+                logger.warning("Checking if it's still running..")
                 if await self.is_running():
-                    logger.error("kill")
+                    logger.warning("Still running, going to kill it")
                     self._subprocess.kill()
-                    await asyncio.sleep(1)
+                    logger.warning("Killing done")
+                    await asyncio.sleep(3)
                 await self._subprocess.wait()  # Wait for the subprocess to terminate
         else:
             logger.debug("Tried to stop router, but it was already not running.")

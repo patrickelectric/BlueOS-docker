@@ -105,10 +105,28 @@ class VersionChooser:
 
         return web.Response(status=501, text=f"Response: {response}")
 
-    @staticmethod
-    def is_valid_version(_repository: str, _tag: str) -> bool:
-        # TODO implement basic validation
-        return True
+    async def is_valid_version(self, image: str) -> Tuple[bool, str]:
+        """
+        Check if the image exists locally.
+
+        Args:
+            image (str): the repository of the image
+
+        Returns:
+            Tuple[bool, str]: (True, image) if the image exists, (False, error_msg) otherwise
+        """
+
+        try:
+            await self.client.images.inspect(image)
+
+            return True, image
+        except Exception:
+            error_msg = (
+                f"Trying to update to {image} but this image doesn't exist locally. "
+                + "Please pull this image before trying to update the container image."
+            )
+            logger.critical(error_msg)
+            return False, error_msg
 
     async def pull_version(self, request: web.Request, repository: str, tag: str) -> web.StreamResponse:
         """Applies a new version.
@@ -177,6 +195,12 @@ class VersionChooser:
         except Exception as error:
             logger.critical(f"Warning: {type(error)}: {error}")
 
+        new_image_name = f"bluerobotics/blueos-bootstrap:{tag}"
+
+        image_check = await self.is_valid_version(new_image_name)
+        if not image_check[0]:
+            return web.Response(status=412, text=image_check[1])
+
         backup_name = "bootstrap-backup"
         try:
             backup = None
@@ -191,13 +215,13 @@ class VersionChooser:
             logger.info(f"Setting current {await self.get_bootstrap_version()} as {backup_name}")
             await bootstrap.rename(backup_name)
             logger.info(f"Stop {self.bootstrap_name}")
-            await bootstrap.stop()
+            await bootstrap.kill()
             result = await bootstrap.wait()  # type: ignore
             logger.info(f"Response after waiting for {self.bootstrap_name} to be stopped: {result}")
 
         HOME = "/root"
         bootstrap_config = {
-            "Image": f"bluerobotics/blueos-bootstrap:{tag}",
+            "Image": new_image_name,
             "HostConfig": {
                 "RestartPolicy": {"Name": "unless-stopped"},
                 "NetworkMode": "host",
@@ -230,8 +254,10 @@ class VersionChooser:
                 400 - Invalid image/tag
                 500 - Invalid settings file/Other internal error
         """
-        if not self.is_valid_version(image, tag):
-            return web.Response(status=400, text="Invalid version")
+
+        image_check = await self.is_valid_version(f"{image}:{tag}")
+        if not image_check[0]:
+            return web.Response(status=412, text=image_check[1])
 
         with open(DOCKER_CONFIG_PATH, "r+", encoding="utf-8") as startup_file:
             try:
@@ -287,7 +313,7 @@ class VersionChooser:
         # actually attempt to delete it
         logger.info(f"Deleting image {image}:{tag}...")
         try:
-            await self.client.images.delete(full_name, force=False, noprune=False)
+            await self.client.images.delete(full_name, force=True, noprune=False)
             logger.info("Image deleted successfully")
             return web.Response(status=200)
         except Exception as e:

@@ -76,10 +76,8 @@
           class="ma-1 pa-0"
           @change="chosen_vehicle = null"
         />
-        <v-form
+        <div
           v-if="upload_type === UploadType.Cloud"
-          ref="form"
-          lazy-validation
         >
           <v-select
             v-model="chosen_vehicle"
@@ -118,7 +116,7 @@
               </p>
             </v-tooltip>
           </div>
-        </v-form>
+        </div>
 
         <v-file-input
           v-if="upload_type === UploadType.File"
@@ -303,7 +301,7 @@ export default Vue.extend({
       await back_axios({
         method: 'get',
         url: `${autopilot.API_URL}/available_firmwares`,
-        timeout: 10000,
+        timeout: 30000,
         params: { vehicle: this.chosen_vehicle, board_name: this.chosen_board?.name },
       })
         .then((response) => {

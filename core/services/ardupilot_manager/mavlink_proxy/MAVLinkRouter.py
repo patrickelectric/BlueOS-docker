@@ -25,6 +25,8 @@ class MAVLinkRouter(AbstractRouter):
     def assemble_command(self, master_endpoint: Endpoint) -> str:
         # Convert endpoint format to mavlink-router format
         def convert_endpoint(endpoint: Endpoint) -> str:
+            if endpoint.connection_type == EndpointType.Serial:
+                return f"{endpoint.place}:{endpoint.argument}"
             # TCP uses a special argument and only works with localhost
             if endpoint.connection_type == EndpointType.TCPServer:
                 return f"--tcp-port {endpoint.argument}"
@@ -61,15 +63,8 @@ class MAVLinkRouter(AbstractRouter):
             raise ValueError(
                 f"Master endpoint of type {master_endpoint.connection_type} not supported on MavlinkRouter."
             )
-        if master_endpoint.connection_type == EndpointType.TCPClient:
-            return f"{self.binary()} \
-                --tcp-endpoint {master_endpoint.place}:{master_endpoint.argument} {endpoints}"
 
-        if master_endpoint.connection_type == EndpointType.TCPServer:
-            return f"{self.binary()} \
-                --tcp-port {master_endpoint.argument} {endpoints}"
-
-        return f"{self.binary()} {master_endpoint.place}:{master_endpoint.argument} {endpoints} -l {self.logdir()}"
+        return f"{self.binary()} {convert_endpoint(master_endpoint)} {endpoints} -l {self.logdir()} -T {self.logdir()}"
 
     @staticmethod
     def name() -> str:

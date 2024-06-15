@@ -11,7 +11,7 @@
     "dev": "vite --host",
     "build": "NODE_ENV=production vite build",
     "serve": "echo 'This is a preview server for testing the built website. Please use `dev` command over `serve`.\nStarting preview server in 5 seconds..\n';sleep 5; vite preview",
-    "lint": "eslint --ext .js,.vue --ignore-path .gitignore --ignore-pattern src/components/vue-tour src"
+    "lint": "eslint --max-warnings=0 --ext .js,.vue --ignore-path .gitignore --ignore-pattern src/components/vue-tour src"
   },
   "dependencies": {
     "@google/model-viewer": "^3.0.0",
@@ -30,6 +30,8 @@
     "date-fns": "^2.23.0",
     "file-saver": "^2.0.5",
     "fuse.js": "^6.6.2",
+    "gl-matrix": "JoaoMario109/gl-matrix#v3.4.x-extended-package",
+    "gsap": "^3.12.3",
     "http-status-codes": "^2.2.0",
     "image-js": "^0.35.3",
     "is-ip": "^5.0.0",
@@ -41,7 +43,7 @@
     "roboto-fontface": "*",
     "semver": "^7.3.8",
     "semver-stable": "^3.0.0",
-    "simple-icons": "^6.8.0",
+    "simple-icons": "11",
     "three": "0.156.1",
     "util": "^0.12.5",
     "uuid": "^9.0.0",

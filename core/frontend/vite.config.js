@@ -7,10 +7,14 @@ const { name } = require('./package.json')
 
 process.env.PROJECT_NAME = name
 process.env.VITE_BUILD_DATE = new Date().toLocaleString()
-const DEFAULT_ADDRESS = 'http://blueos.local/'
+const DEFAULT_ADDRESS = 'http://blueos-avahi.local/'
 const SERVER_ADDRESS = process.env.BLUEOS_ADDRESS ?? DEFAULT_ADDRESS
 
 const path = require('path')
+const assert = require('assert');
+
+// TODO: check if it works with https once we have something that does
+assert.ok(SERVER_ADDRESS.startsWith('http://'), 'SERVER_ADDRESS must start with http://');
 
 export default defineConfig({
   plugins: [
@@ -44,7 +48,7 @@ export default defineConfig({
       version: 2.7,
     }),
   ],
-  assetsInclude: ['**/*.gif', '**/*.glb', '**/*.svg'],
+  assetsInclude: ['**/*.gif', '**/*.glb', '**/*.png', '**/*.svg'],
   resolve: {
     extensions: ['.mjs', '.js', '.ts', '.jsx', '.tsx', '.json', '.vue'],
     alias: {
@@ -129,12 +133,16 @@ export default defineConfig({
       },
       '^/network-test': {
         target: SERVER_ADDRESS,
+        changeOrigin: true,
+        ws: true,
       },
       '^/ping': {
         target: SERVER_ADDRESS,
       },
       '^/system-information': {
         target: SERVER_ADDRESS,
+        changeOrigin: true,
+        ws: true,
       },
       '^/terminal': {
         target: SERVER_ADDRESS,
@@ -143,6 +151,7 @@ export default defineConfig({
       },
       '^/userdata': {
         target: SERVER_ADDRESS,
+        changeOrigin: true,
       },
       '^/vehicles': {
         target: SERVER_ADDRESS,

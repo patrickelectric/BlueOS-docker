@@ -116,8 +116,9 @@ function toHex(value: number): string {
 export interface deviceId {
     param: string
     paramValue: number
+    deviceIdNumber: number
     deviceName?: string
-    busType: string
+    busType: BUS_TYPE
     bus: number
     address: string
     devtype: number
@@ -128,19 +129,22 @@ export default function decode(device: string, devid: number): deviceId {
   const bus = devid >> 3 & 0x1F
   const address = devid >> 8 & 0xFF
   const devtype = devid >> 16
+  // set deviceIdNumber to the last number of the "device" string or 1 if it's not a number
+  const deviceIdNumber = parseInt(device.slice(-1), 10) || 1
+
   let decodedDevname = 'UNKNOWN'
 
   if (device.startsWith('COMPASS')) {
     // When compass uses UAVCAN, the devtype is sensor_id + 1
     // So we ignore it to avoid showing up the wrong device name
-    switch (bus) {
+    switch (busType) {
       // When compass uses UAVCAN, the devtype is sensor_id + 1
       // So we ignore it to avoid showing up the wrong device name
-      case BUS_TYPE.UAVCAN:
+      case BUS_TYPE[BUS_TYPE.UAVCAN]:
         decodedDevname = 'UAVCAN'
         break
       // eAHRS is the only one that uses SERIAL
-      case BUS_TYPE.SERIAL:
+      case BUS_TYPE[BUS_TYPE.SERIAL]:
         decodedDevname = 'eAHRS'
         break
       default:
@@ -163,6 +167,7 @@ export default function decode(device: string, devid: number): deviceId {
     bus,
     address: toHex(address),
     devtype,
+    deviceIdNumber,
     paramValue: devid,
   }
 }

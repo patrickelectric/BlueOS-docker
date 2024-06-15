@@ -14,9 +14,13 @@
       <extension-modal
         :extension="selected_extension"
         :installed="installedVersion()"
-        @clicked="installFromSelected"
+        @clicked="performActionFromModal"
       />
     </v-dialog>
+    <extension-settings
+      v-model="show_settings"
+      @refresh="fetchManifest"
+    />
     <v-dialog
       v-model="show_log"
       width="80%"
@@ -29,26 +33,53 @@
         </v-card-text>
       </v-card>
     </v-dialog>
-    <v-tabs
-      v-model="tab"
-      fixed-tabs
-    >
-      <v-tab>
-        <v-icon class="mr-5">
-          mdi-store-search
-        </v-icon>
-        Store
-      </v-tab>
-      <v-tab>
-        <v-icon class="mr-5">
-          mdi-bookshelf
-        </v-icon>
-        Installed
-      </v-tab>
-    </v-tabs>
+    <v-toolbar density="compact">
+      <div class="search-container">
+        <v-text-field
+          v-model.trim="searchQuery"
+          dense
+          rounded
+          clearable
+          placeholder="Search Extensions"
+          prepend-inner-icon="mdi-magnify"
+          class="pt-6 shrink expanding-search"
+          :class="{ closed: searchQueryClosed && !searchQuery }"
+          @focus="searchQueryClosed = false"
+          @blur="searchQueryClosed = true"
+        />
+      </div>
+      <v-tabs
+        v-model="tab"
+        fixed-tabs
+        class="tabs-container"
+      >
+        <v-tab>
+          <v-icon class="mr-5">
+            mdi-store-search
+          </v-icon>
+          Store
+        </v-tab>
+        <v-tab>
+          <v-icon class="mr-5">
+            mdi-bookshelf
+          </v-icon>
+          Installed
+        </v-tab>
+      </v-tabs>
+      <v-spacer class="tabs-container-spacer-right" />
+      <v-btn
+        v-tooltip="'Settings'"
+        icon
+        color="gray"
+        hide-details="auto"
+        @click="show_settings = true"
+      >
+        <v-icon>mdi-cog</v-icon>
+      </v-btn>
+    </v-toolbar>
     <v-card
       v-if="tab === 0"
-      class="d-flex pa-5"
+      class="d-flex pa-5 align-baseline"
     >
       <v-card min-width="200px">
         <v-list>
@@ -78,8 +109,10 @@
         </v-list>
       </v-card>
       <v-row
+        v-if="filteredManifest.length > 0"
         dense
-        class="d-flex justify-space-between"
+        class="d-flex"
+        style="place-self: flex-start start; place-content: start space-around;"
       >
         <extension-card
           v-for="extension in filteredManifest"
@@ -97,10 +130,18 @@
           No Extensions available. Make sure the vehicle has internet access and try again.
         </p>
       </v-container>
+      <v-container
+        v-if="filteredManifest.length === 0"
+        class="text-center"
+      >
+        <p class="text-h6">
+          No results found.
+        </p>
+      </v-container>
     </v-card>
     <v-card
       v-if="tab === 1"
-      class="d-flex pa-5"
+      class="main-container d-flex pa-5"
       text-align="center"
     >
       <div v-if="tab === 1" class="installed-extensions-container">
@@ -168,19 +209,23 @@
 <script lang="ts">
 import AnsiUp from 'ansi_up'
 import axios from 'axios'
+import Fuse from 'fuse.js'
 import Vue from 'vue'
 
 import SpinningLogo from '@/components/common/SpinningLogo.vue'
 import ExtensionCard from '@/components/kraken/ExtensionCard.vue'
 import CreationDialog from '@/components/kraken/ExtensionCreationDialog.vue'
 import ExtensionModal from '@/components/kraken/ExtensionModal.vue'
+import ExtensionSettings from '@/components/kraken/ExtensionSettings.vue'
 import InstalledExtensionCard from '@/components/kraken/InstalledExtensionCard.vue'
+import kraken from '@/components/kraken/KrakenManager'
 import PullProgress from '@/components/utils/PullProgress.vue'
 import Notifier from '@/libs/notifier'
 import { Dictionary } from '@/types/common'
 import { kraken_service } from '@/types/frontend_services'
 import back_axios from '@/utils/api'
 import PullTracker from '@/utils/pull_tracker'
+import { aggregateStreamingResponse, parseStreamingResponse } from '@/utils/streaming'
 
 import {
   ExtensionData, InstalledExtensionData, RunningContainer, Version,
@@ -196,6 +241,7 @@ export default Vue.extend({
     ExtensionCard,
     InstalledExtensionCard,
     ExtensionModal,
+    ExtensionSettings,
     PullProgress,
     CreationDialog,
     SpinningLogo,
@@ -204,12 +250,14 @@ export default Vue.extend({
     return {
       tab: 0,
       show_dialog: false,
+      show_settings: false,
       installed_extensions: {} as Dictionary<InstalledExtensionData>,
       selected_extension: null as (null | ExtensionData),
       selected_companies: [] as string[],
       selected_tags: [] as string[],
       running_containers: [] as RunningContainer[],
       manifest: [] as ExtensionData[],
+      manifest_fuse: null as null | Fuse<ExtensionData>,
       dockers_fetch_done: false,
       dockers_fetch_failed: false,
       show_pull_output: false,
@@ -222,6 +270,8 @@ export default Vue.extend({
       metrics: {} as Dictionary<{ cpu: number, memory: number}>,
       metrics_interval: 0,
       edited_extension: null as null | InstalledExtensionData,
+      searchQuery: null as null | string,
+      searchQueryClosed: true,
     }
   },
   computed: {
@@ -236,25 +286,35 @@ export default Vue.extend({
         .sort() as string[]
       return [...new Set(authors)]
     },
+    searchFilteredManifest(): ExtensionData[] {
+      const query = this.searchQuery ?? ''
+
+      // Remove not compatible in case user is not searching by search bar directly
+      const data = query !== ''
+        ? this.manifest_fuse?.search(query).map((result) => result.item) ?? []
+        : this.manifest.filter((ext) => ext.is_compatible)
+
+      return data
+    },
     filteredManifest(): ExtensionData[] {
+      let data = this.searchFilteredManifest
+
       if (this.selected_companies.isEmpty() && this.selected_tags.isEmpty()) {
         // By default we remove examples if nothing is selected
-        return this.manifest.filter((extension) => this.newestVersion(extension.versions)?.type !== 'example')
+        return data.filter((extension) => this.newestVersion(extension.versions)?.type !== 'example')
       }
 
-      let { manifest } = this
-
       if (!this.selected_companies.isEmpty()) {
-        manifest = manifest.filter((extension) => this.newestVersion(extension.versions)?.company?.name !== undefined)
+        data = data.filter((extension) => this.newestVersion(extension.versions)?.company?.name !== undefined)
           .filter((extension) => this.selected_companies
             .includes(this.newestVersion(extension.versions)?.company?.name ?? ''))
       }
 
       if (this.selected_tags.isEmpty()) {
-        return manifest
+        return data
       }
 
-      return manifest
+      return data
         .filter((extension) => this.newestVersion(extension.versions)?.type !== undefined)
         .filter((extension) => this.selected_tags
           .includes(this.newestVersion(extension.versions)?.type ?? ''))
@@ -386,18 +446,24 @@ export default Vue.extend({
     getContainerName(extension: InstalledExtensionData): string | null {
       return this.getContainer(extension)?.name ?? null
     },
+    checkExtensionCompatibility(extension: ExtensionData): boolean {
+      return Object.values(extension.versions).some(
+        (version) => version.images.some(
+          (image) => image.compatible,
+        ),
+      )
+    },
     async fetchManifest(): Promise<void> {
-      await back_axios({
-        method: 'get',
-        url: `${API_URL}/extensions_manifest`,
-        timeout: 3000,
-      })
+      kraken.fetchConsolidatedManifests()
         .then((response) => {
-          if ('detail' in response.data) {
-            notifier.pushBackError('EXTENSIONS_MANIFEST_FETCH_FAIL', new Error(response.data.detail))
-            return
-          }
-          this.manifest = response.data
+          this.manifest = response.map((extension: ExtensionData) => ({
+            ...extension,
+            is_compatible: this.checkExtensionCompatibility(extension),
+          }))
+          this.manifest_fuse = new Fuse(this.manifest, {
+            keys: ['identifier', 'name', 'description'],
+            threshold: 0.4,
+          })
         })
         .catch((error) => {
           notifier.pushBackError('EXTENSIONS_MANIFEST_FETCH_FAIL', error)
@@ -436,8 +502,26 @@ export default Vue.extend({
           container_name: this.getContainerName(extension),
         },
         onDownloadProgress: (progressEvent) => {
-          const chunk = progressEvent.currentTarget.response
-          this.$set(this, 'log_output', ansi.ansi_to_html(chunk))
+          const result = aggregateStreamingResponse(
+            parseStreamingResponse(progressEvent.currentTarget.response),
+            (fragment, buffer) => {
+              // If no logs are available kraken will wait till timeout and stop the stream
+              if (fragment.status === 408) {
+                if (!buffer) {
+                  this.$set(this, 'log_output', ansi.ansi_to_html('No Logs available'))
+                }
+              } else {
+                notifier.pushBackError('EXTENSIONS_LOG_FETCH_FAIL', fragment.error)
+              }
+
+              /** Only stops if buffer is empty */
+              return Boolean(buffer)
+            },
+          )
+
+          if (result) {
+            this.$set(this, 'log_output', ansi.ansi_to_html(result))
+          }
           this.show_log = true
           this.setLoading(extension, false)
           this.$nextTick(() => {
@@ -451,7 +535,7 @@ export default Vue.extend({
             output.scrollTop = output.scrollHeight
           })
         },
-        timeout: 30000,
+        timeout: 35000,
       })
         .then(() => {
           this.setLoading(extension, false)
@@ -524,6 +608,18 @@ export default Vue.extend({
           this.extraction_percentage = 0
           this.status_text = ''
         })
+    },
+    async performActionFromModal(identifier: string, tag: string, isInstalled: boolean) {
+      if (isInstalled) {
+        const ext = this.installed_extensions[identifier]
+        if (!ext) {
+          return
+        }
+        this.show_dialog = false
+        await this.uninstall(ext)
+      } else {
+        await this.installFromSelected(tag)
+      }
     },
     async installFromSelected(tag: string) {
       if (!this.selected_extension) {
@@ -636,13 +732,20 @@ export default Vue.extend({
 .installed-extensions-container {
   display: flex;
   flex-wrap: wrap;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: flex-start;
+  width: 100%;
+}
+
+.main-container {
+  background-color: #135DA355 !important;
 }
 
 .installed-extension-card {
   margin: 10px;
-  flex: 1 1 400px;
+  flex: 1 1 calc(33.333% - 20px);
+  max-width: calc(33.333% - 20px);
+  min-width: 400px;
 }
 
 .jv-code {
@@ -655,4 +758,27 @@ pre.logs {
   padding: 15px;
   overflow-x: scroll;
 }
+
+.search-container {
+  flex: 1 1 auto;
+  width: 50% !important;
+}
+
+.tabs-container-spacer-right {
+  flex: 1 1 auto;
+  width: 30% !important;
+}
+
+.v-input.expanding-search {
+  transition: max-width 0.2s;
+}
+
+.v-input.expanding-search .v-input__slot {
+  cursor: pointer;
+}
+
+.v-input.expanding-search.closed {
+  max-width: 50px;
+}
+
 </style>

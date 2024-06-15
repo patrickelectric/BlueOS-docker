@@ -1,4 +1,5 @@
 import os
+import platform
 
 import pytest
 
@@ -27,7 +28,8 @@ def test_firmware_download() -> None:
     versions = firmware_download._find_version_item(
         vehicletype="Sub", mav_firmware_version_type="STABLE-4.0.1", platform=Platform.Pixhawk1
     )
-    assert len(versions) == 3, "Failed to find multiple versions."
+    # There are two versions, one for the firmware and one with the bootloader
+    assert len(versions) == 2, "Failed to find multiple versions."
 
     available_versions = firmware_download.get_available_versions(Vehicle.Sub, Platform.Pixhawk1)
     assert len(available_versions) == len(set(available_versions)), "Available versions are not unique."
@@ -47,6 +49,9 @@ def test_firmware_download() -> None:
 
     assert firmware_download.download(Vehicle.Sub, Platform.SITL), "Failed to download SITL."
 
+    # skipt these tests for MacOS
+    if platform.system() == "Darwin":
+        pytest.skip("Skipping test for MacOS")
     # It'll fail if running in an arch different of ARM
     if "x86" in os.uname().machine:
         assert firmware_download.download(Vehicle.Sub, Platform.Navigator), "Failed to download navigator binary."

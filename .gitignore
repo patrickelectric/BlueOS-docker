@@ -1,9 +1,20 @@
-*__pycache__
-*.pytest_cache
 .coverage
 htmlcov/
-env/
 build/
 *.egg-info
 dist/
 node_modules
+
+# Avoid local python development
+*__pycache__
+*.pytest_cache
+*__mypycache__
+env/
+Pipfile
+Pipfile.lock
+poetry.lock
+registry/
+
+# Docker compose binds
+core/compose/workspace/
+

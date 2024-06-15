@@ -10,7 +10,6 @@ from typing import Any, Dict, List, Optional
 import psutil
 from commonwealth.settings.manager import Manager
 from commonwealth.utils.apis import PrettyJSONResponse
-from commonwealth.utils.general import limit_ram_usage
 from commonwealth.utils.logs import init_logger
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
@@ -24,8 +23,6 @@ from settings import ServiceTypes, SettingsV4
 from typedefs import InterfaceType, IpInfo, MdnsEntry
 
 SERVICE_NAME = "beacon"
-
-limit_ram_usage()
 
 
 class AsyncRunner:
@@ -114,12 +111,13 @@ class Beacon:
     def set_hostname(self, hostname: str) -> None:
         self.manager.settings.default.domain_names = [hostname]
         for interface in self.manager.settings.interfaces:
-            if interface.name.startswith("eth") or interface.name.startswith("usb"):
-                interface.domain_names = [hostname, self.DEFAULT_HOSTNAME]  # let's keep our default just in case
-            elif interface.name.startswith("wlan"):
-                interface.domain_names = [f"{hostname}-wifi"]
-            elif interface.name.startswith("uap"):
-                interface.domain_names = [f"{hostname}-hostspot"]
+            match InterfaceType.guess_from_name(interface.name):
+                case InterfaceType.WIRED | InterfaceType.USB:
+                    interface.domain_names = [hostname, self.DEFAULT_HOSTNAME]  # let's keep our default just in case
+                case InterfaceType.WIFI:
+                    interface.domain_names = [f"{hostname}-wifi"]
+                case InterfaceType.HOTSPOT:
+                    interface.domain_names = [f"{hostname}-hotspot"]
         self.manager.save()
 
     def get_hostname(self) -> str:

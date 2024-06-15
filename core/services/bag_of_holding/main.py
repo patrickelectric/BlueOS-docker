@@ -8,7 +8,6 @@ import appdirs
 import dpath
 import uvicorn
 from commonwealth.utils.apis import GenericErrorHandlingRoute
-from commonwealth.utils.general import limit_ram_usage
 from commonwealth.utils.logs import InterceptHandler, init_logger
 from fastapi import Body, FastAPI, HTTPException
 from fastapi import Path as FastPath
@@ -19,8 +18,6 @@ from pydantic import BaseModel
 
 SERVICE_NAME = "bag-of-holding"
 FILE_PATH = Path(appdirs.user_config_dir(SERVICE_NAME, "db.json"))
-
-limit_ram_usage()
 
 logging.basicConfig(handlers=[InterceptHandler()], level=0)
 init_logger(SERVICE_NAME)
@@ -65,7 +62,7 @@ async def overwrite_data(payload: dict[str, Any] = Body(...)) -> JSONResponse:
 
 @app.post("/set/{path:path}")
 @version(1, 0)
-async def write_data(path: str = FastPath(..., regex=r"^.*$"), payload: dict[str, Any] = Body(...)) -> JSONResponse:
+async def write_data(path: str = FastPath(..., regex=r"^.*$"), payload: Any = Body(...)) -> JSONResponse:
     logger.debug(f"Write path: {path}, {json.dumps(payload)}")
     current_data = read_db()
     dpath.new(current_data, path, payload)

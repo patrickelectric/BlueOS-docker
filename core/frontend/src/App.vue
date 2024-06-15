@@ -60,6 +60,7 @@
         <internet-tray-menu />
         <wifi-tray-menu />
         <ethernet-tray-menu />
+        <cloud-tray-menu />
         <notification-tray-button />
       </v-app-bar>
     </v-card>
@@ -187,7 +188,7 @@
 
             <v-list-item
               v-else
-              :to="menu.route"
+              :to="menu.new_page ? null : menu.route"
               :target="menu.new_page ? '_blank' : '_self'"
               :href="menu.extension ? menu.route : undefined"
             >
@@ -237,7 +238,7 @@
                     dark
                   >
                     <div
-                      v-tooltip="'This is an installed extensions'"
+                      v-tooltip="'This is an installed extension'"
                       class="extension-marker ma-0"
                     >
                       <v-avatar
@@ -336,11 +337,10 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue'
+import Vue, { defineAsyncComponent } from 'vue'
 
 import blueos_blue from '@/assets/img/blueos-logo-blue.svg'
 import blueos_white from '@/assets/img/blueos-logo-white.svg'
-import Wizard from '@/components/wizard/Wizard.vue'
 import settings from '@/libs/settings'
 import helper from '@/store/helper'
 import wifi from '@/store/wifi'
@@ -362,6 +362,7 @@ import ThemeTrayMenu from './components/app/ThemeTrayMenu.vue'
 import VehicleBanner from './components/app/VehicleBanner.vue'
 import VehicleRebootRequiredTrayMenu from './components/app/VehicleRebootRequiredTrayMenu.vue'
 import BeaconTrayMenu from './components/beacon/BeaconTrayMenu.vue'
+import CloudTrayMenu from './components/cloud/CloudTrayMenu.vue'
 import EthernetTrayMenu from './components/ethernet/EthernetTrayMenu.vue'
 import EthernetUpdater from './components/ethernet/EthernetUpdater.vue'
 import HealthTrayMenu from './components/health/HealthTrayMenu.vue'
@@ -385,6 +386,7 @@ export default Vue.extend({
     'wifi-tray-menu': WifiTrayMenu,
     'wifi-updater': WifiUpdater,
     'ethernet-tray-menu': EthernetTrayMenu,
+    'cloud-tray-menu': CloudTrayMenu,
     'ethernet-updater': EthernetUpdater,
     'health-tray-menu': HealthTrayMenu,
     'mavlink-updater': MavlinkUpdater,
@@ -397,7 +399,7 @@ export default Vue.extend({
     'new-version-notificator': NewVersionNotificator,
     SystemCheckerTrayMenu,
     VehicleRebootRequiredTrayMenu,
-    Wizard,
+    Wizard: defineAsyncComponent(() => import('@/components/wizard/Wizard.vue')),
   },
 
   data: () => ({
@@ -460,8 +462,8 @@ export default Vue.extend({
             icon: service.metadata?.icon?.startsWith('/')
               ? `${address}${service.metadata.icon}`
               : service.metadata?.icon ?? 'mdi-puzzle',
-            route: this.addExtraQuery(service.metadata?.route ?? address, service.metadata?.extra_queries),
-            new_page: service.metadata?.new_page ?? undefined,
+            route: this.addExtraQuery(service.metadata?.route ?? address, service.metadata?.extra_query),
+            new_page: service.metadata?.avoid_iframes ?? service.metadata?.new_page,
             advanced: false,
             text: service.metadata?.description ?? 'Service text',
             extension: true,
@@ -508,7 +510,7 @@ export default Vue.extend({
         },
         {
           target: '#wifi-tray-menu-button',
-          content: 'You can do it by connecting to a wifi network...',
+          content: 'You can do this by connecting to a wifi network...',
           filter_wifi_connected: true,
           params: {
             enableScrolling: false,
@@ -516,7 +518,7 @@ export default Vue.extend({
         },
         {
           target: '#ethernet-tray-menu-button',
-          content: '...or by connecting to a cable internet (usually from/to a router).',
+          content: '..or connecting to a wired Ethernet connection (usually from a router).',
           filter_wifi_connected: true,
           params: {
             enableScrolling: false,
@@ -673,6 +675,10 @@ export default Vue.extend({
       }
     },
     createExtensionAddress(service: Service): string {
+      if (service.metadata?.avoid_iframes) {
+        const base_url = window.location.origin.split(':').slice(0, 2).join(':')
+        return `${base_url}:${service.port}`
+      }
       let address = `/extension/${service?.metadata?.sanitized_name}`
       if (service?.metadata?.new_page) {
         address += '?full_page=true'
@@ -706,7 +712,9 @@ export default Vue.extend({
       this.backend_offline = backend_offline
     },
     goHome(): void {
-      this.$router.push('/')
+      if (this.$router.currentRoute.path !== '/') {
+        this.$router.push('/')
+      }
     },
   },
 })
@@ -863,6 +871,11 @@ div.pirate-marker.v-icon {
   100% {
     transform: rotate(360deg);
   }
+}
+
+/* Fix v-stepper disappearing when the screen is small*/
+.v-stepper__label {
+  display: block !important;
 }
 
 html {

@@ -394,15 +394,15 @@ class ArduPilotManager(metaclass=Singleton):
         await self.mavlink_manager.start(device)
 
     @staticmethod
-    def available_boards(include_bootloaders: bool = False) -> List[FlightController]:
-        all_boards = BoardDetector.detect(True)
+    async def available_boards(include_bootloaders: bool = False) -> List[FlightController]:
+        all_boards = await BoardDetector.detect(True)
         if include_bootloaders:
             return all_boards
         return [board for board in all_boards if FlightControllerFlags.is_bootloader not in board.flags]
 
     async def change_board(self, board: FlightController) -> None:
         logger.info(f"Trying to run with '{board.name}'.")
-        if board not in self.available_boards():
+        if board not in await self.available_boards():
             raise ValueError(f"Cannot use '{board.name}'. Board not detected.")
         self.set_preferred_board(board)
         await self.kill_ardupilot()
@@ -473,11 +473,22 @@ class ArduPilotManager(metaclass=Singleton):
             try:
                 logger.debug(f"Killing Ardupilot process {process.name()}::{process.pid}.")
                 process.kill()
-                await asyncio.sleep(0.5)
             except Exception as error:
-                raise ArdupilotProcessKillFail(f"Could not kill {process.name()}::{process.pid}.") from error
+                logger.debug(f"Could not kill Ardupilot: {error}")
+
+            try:
+                process.wait(3)
+                continue
+            except Exception as error:
+                logger.debug(f"Ardupilot appears to be running.. going to call pkill: {error}")
+
+            try:
+                subprocess.run(["pkill", "-9", process.pid], check=True)
+            except Exception as error:
+                raise ArdupilotProcessKillFail(f"Failed to kill {process.name()}::{process.pid}.") from error
 
     async def kill_ardupilot(self) -> None:
+        self.should_be_running = False
         if not self.current_board or self.current_board.platform != Platform.SITL:
             try:
                 logger.info("Disarming vehicle.")
@@ -486,26 +497,23 @@ class ArduPilotManager(metaclass=Singleton):
             except Exception as error:
                 logger.warning(f"Could not disarm vehicle: {error}. Proceeding with kill.")
 
-        try:
-            # TODO: Add shutdown command on HAL_SITL and HAL_LINUX, changing terminate/prune
-            # logic with a simple "self.vehicle_manager.shutdown_vehicle()"
-            logger.info("Terminating Ardupilot subprocess.")
-            await self.terminate_ardupilot_subprocess()
-            logger.info("Ardupilot subprocess terminated.")
-            logger.info("Pruning Ardupilot's system processes.")
-            await self.prune_ardupilot_processes()
-            logger.info("Ardupilot's system processes pruned.")
+        # TODO: Add shutdown command on HAL_SITL and HAL_LINUX, changing terminate/prune
+        # logic with a simple "self.vehicle_manager.shutdown_vehicle()"
+        logger.info("Terminating Ardupilot subprocess.")
+        await self.terminate_ardupilot_subprocess()
+        logger.info("Ardupilot subprocess terminated.")
+        logger.info("Pruning Ardupilot's system processes.")
+        await self.prune_ardupilot_processes()
+        logger.info("Ardupilot's system processes pruned.")
 
-            logger.info("Stopping Mavlink manager.")
-            await self.mavlink_manager.stop()
-            logger.info("Mavlink manager stopped.")
-        finally:
-            self.should_be_running = False
+        logger.info("Stopping Mavlink manager.")
+        await self.mavlink_manager.stop()
+        logger.info("Mavlink manager stopped.")
 
     async def start_ardupilot(self) -> None:
         await self.setup()
         try:
-            available_boards = self.available_boards()
+            available_boards = await self.available_boards()
             if not available_boards:
                 raise RuntimeError("No boards available.")
             if len(available_boards) > 1:

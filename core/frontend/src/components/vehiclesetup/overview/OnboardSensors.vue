@@ -36,7 +36,36 @@
               </td>
               <td>{{ imu.busType }} {{ imu.bus }}</td>
               <td>{{ `0x${imu.address}` }}</td>
-              <td>{{ imu_is_calibrated[imu.param] ? 'Calibrated' : 'Needs Calibration' }}</td>
+              <td>
+                <v-icon
+                  v-if="imu_is_calibrated[imu.param]"
+                  v-tooltip="'Sensor is callibrated and good to use'"
+                  color="green"
+                >
+                  mdi-emoticon-happy-outline
+                </v-icon>
+                <v-icon
+                  v-else
+                  v-tooltip="'Sensor needs to be calibrated'"
+                  color="red"
+                >
+                  mdi-emoticon-sad-outline
+                </v-icon>
+                <v-icon
+                  v-if="imu_temperature_is_calibrated[imu.param].calibrated"
+                  v-tooltip="'Sensor thermometer is calibrated and good to use'"
+                  color="green"
+                >
+                  mdi-thermometer-check
+                </v-icon>
+                <v-icon
+                  v-else
+                  v-tooltip="'Sensor thermometer needs to be calibrated'"
+                  color="red"
+                >
+                  mdi-thermometer-off
+                </v-icon>
+              </td>
             </tr>
             <tr
               v-for="compass in compasses"
@@ -48,7 +77,22 @@
               </td>
               <td>{{ compass.busType }} {{ compass.bus }}</td>
               <td>{{ `0x${compass.address}` }}</td>
-              <td>{{ compass_is_calibrated[compass.param] ? 'Calibrated' : 'Needs Calibration' }}</td>
+              <td>
+                <v-icon
+                  v-if="compass_is_calibrated[compass.param]"
+                  v-tooltip="'Sensor is callibrated and good to use'"
+                  color="green"
+                >
+                  mdi-emoticon-happy-outline
+                </v-icon>
+                <v-icon
+                  v-else
+                  v-tooltip="'Sensor needs to be calibrated'"
+                  color="red"
+                >
+                  mdi-emoticon-sad-outline
+                </v-icon>
+              </td>
             </tr>
             <tr
               v-for="baro in baros"
@@ -61,6 +105,18 @@
               <td>{{ baro.busType }} {{ baro.bus }}</td>
               <td>{{ `0x${baro.address}` }}</td>
               <td>{{ baro_status[baro.param] }}</td>
+            </tr>
+            <tr
+              v-for="sensor in celsius"
+              :key="sensor.param"
+            >
+              <td><b>{{ sensor.deviceName ?? 'UNKNOWN' }}</b></td>
+              <td v-tooltip="'Used to estimate altitude/depth'">
+                Temperature
+              </td>
+              <td>{{ sensor.busType }} {{ sensor.bus }}</td>
+              <td>{{ `0x${sensor.address}` }}</td>
+              <td>{{ celsius_temperature }} ºC</td>
             </tr>
           </tbody>
         </template>
@@ -80,6 +136,8 @@ import { Dictionary } from '@/types/common'
 import decode, { deviceId } from '@/utils/deviceid_decoder'
 import mavlink_store_get from '@/utils/mavlink'
 
+import { imu_is_calibrated, imu_temperature_is_calibrated } from '../configuration/common'
+
 export default Vue.extend({
   name: 'OnboardSensors',
   computed: {
@@ -97,6 +155,27 @@ export default Vue.extend({
       return autopilot_data.parameterRegex('^BARO.*_DEVID')
         .filter((param) => param.value !== 0)
         .map((parameter) => decode(parameter.name, parameter.value))
+    },
+    // DEV_ID params do not exist yet for temperature sensors, so here we detect the incoming message instead
+    celsius_temperature(): number | undefined {
+      return mavlink_store_get(mavlink, 'SCALED_PRESSURE3.messageData.message.temperature') as number / 100.0
+    },
+    celsius(): deviceId[] {
+      if (!this.celsius_temperature) {
+        return []
+      }
+      return [
+        {
+          bus: 1,
+          paramValue: 0,
+          deviceIdNumber: 0,
+          devtype: 0,
+          busType: 'I2C',
+          address: '77',
+          deviceName: 'Celsius',
+          param: '-',
+        },
+      ]
     },
     compass_description(): Dictionary<string> {
       const results = {} as Dictionary<string>
@@ -167,23 +246,10 @@ export default Vue.extend({
       return results
     },
     imu_is_calibrated(): Dictionary<boolean> {
-      const results = {} as Dictionary<boolean>
-      for (const imu of this.imus) {
-        const param_radix = imu.param.split('_ID')[0]
-        const offset_params_names = [`${param_radix}OFFS_X`, `${param_radix}OFFS_Y`, `${param_radix}OFFS_Z`]
-        const scale_params_names = [`${param_radix}SCAL_X`, `${param_radix}SCAL_Y`, `${param_radix}SCAL_Z`]
-        const offset_params = offset_params_names.map(
-          (name) => autopilot_data.parameter(name),
-        )
-        const scale_params = scale_params_names.map(
-          (name) => autopilot_data.parameter(name),
-        )
-        const is_at_default_offsets = offset_params.every((param) => param?.value === 0.0)
-        const is_at_default_scale = scale_params.every((param) => param?.value === 1.0)
-        results[imu.param] = offset_params.isEmpty() || scale_params.isEmpty()
-        || !is_at_default_offsets || !is_at_default_scale
-      }
-      return results
+      return imu_is_calibrated(this.imus, autopilot_data)
+    },
+    imu_temperature_is_calibrated(): Dictionary<{ calibrated: boolean, calibrationTemperature: number }> {
+      return imu_temperature_is_calibrated(this.imus, autopilot_data)
     },
     is_water_baro(): Dictionary<boolean> {
       const results = {} as Dictionary<boolean>
@@ -224,8 +290,9 @@ export default Vue.extend({
     },
   },
   mounted() {
-    mavlink.setMessageRefreshRate({ messageName: 'SCALED_PRESSURE', refreshRate: 1 })
-    mavlink.setMessageRefreshRate({ messageName: 'SCALED_PRESSURE2', refreshRate: 1 })
+    mavlink.setMessageRefreshRate({ messageName: 'SCALED_PRESSURE$', refreshRate: 1 })
+    mavlink.setMessageRefreshRate({ messageName: 'SCALED_PRESSURE2$', refreshRate: 1 })
+    mavlink.setMessageRefreshRate({ messageName: 'SCALED_PRESSURE3$', refreshRate: 1 })
     mavlink.setMessageRefreshRate({ messageName: 'VFR_HUD', refreshRate: 1 })
   },
   methods: {
