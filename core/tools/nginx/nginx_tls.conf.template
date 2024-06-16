@@ -135,7 +135,7 @@ http {
         location ^~ /logviewer {
             # ^~ makes this a higher priority than locations with regex
             expires 10d;
-            root /var/www/html;
+            root /home/pi/tools;
         }
 
         location /mavlink2rest {
