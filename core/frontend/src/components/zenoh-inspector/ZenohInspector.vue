@@ -211,8 +211,12 @@ export default Vue.extend({
         coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
         wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm')
       })
-      //await ffmpeg.exec(['-i', videoBlobUrl, '-c', 'copy', 'output.mp4'])
       console.log('FFmpeg loaded')
+      await ffmpeg.writeFile('input.webm', await fetchFile('https://raw.githubusercontent.com/ffmpegwasm/testdata/master/Big_Buck_Bunny_180_10s.webm'))
+      await ffmpeg.exec(['-i', 'input.webm', '-frames:v', '1', 'frame.jpg'])
+      console.log('FFmpeg executed')
+      const frame = await ffmpeg.readFile('frame.jpg')
+      console.log('FFmpeg frame:', frame)
     },
     cleanupVideoDecoder() {
       if (this.videoDecoder) {
