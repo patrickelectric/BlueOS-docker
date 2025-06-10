@@ -126,6 +126,18 @@ import type { LogEvent } from '@ffmpeg/ffmpeg'
 import { fetchFile, toBlobURL } from '@ffmpeg/util'
 import Vue from 'vue'
 
+interface VideoFrame {
+  width: number
+  height: number
+  close(): void
+}
+
+interface VideoDecoder {
+  configure(config: { codec: string; optimizeForLatency: boolean }): Promise<void>
+  decode(chunk: EncodedVideoChunk): void
+  close(): void
+}
+
 interface ZenohMessage {
   topic: string
   payload: string | Uint8Array
@@ -147,6 +159,7 @@ export default Vue.extend({
       subscriber: null as Subscriber | null,
       liveliness_subscriber: null as Subscriber | null,
       videoDecoder: null as VideoDecoder | null,
+      ffmpeg: null as FFmpeg | null,
     }
   },
   computed: {
@@ -212,20 +225,47 @@ export default Vue.extend({
         wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm')
       })
       console.log('FFmpeg loaded')
-      await ffmpeg.writeFile('input.webm', await fetchFile('https://raw.githubusercontent.com/ffmpegwasm/testdata/master/Big_Buck_Bunny_180_10s.webm'))
-      await ffmpeg.exec(['-i', 'input.webm', '-frames:v', '1', 'frame.jpg'])
-      console.log('FFmpeg executed')
-      const frame = await ffmpeg.readFile('frame.jpg')
-      const blob = new Blob([frame.buffer], { type: 'image/jpeg' });
-      const url = URL.createObjectURL(blob);
-      const img = new Image();
-      img.onload = () => {
-        canvas.width = img.width;
-        canvas.height = img.height;
-        ctx.drawImage(img, 0, 0);
-        URL.revokeObjectURL(url);
-      };
-      img.src = url;
+
+      // Store ffmpeg instance for later use
+      this.ffmpeg = ffmpeg
+    },
+
+    async processVideoChunk(chunkData: Uint8Array) {
+      if (!this.ffmpeg) {
+        console.error('FFmpeg not initialized')
+        return
+      }
+
+      try {
+        // Write the video chunk to a file
+        await this.ffmpeg.writeFile('input.h264', chunkData)
+
+        // Convert the H264 chunk to a frame
+        await this.ffmpeg.exec(['-i', 'input.h264', '-frames:v', '1', 'frame.jpg'])
+
+        // Read the frame
+        const frame = await this.ffmpeg.readFile('frame.jpg')
+        const blob = new Blob([frame], { type: 'image/jpeg' })
+        const url = URL.createObjectURL(blob)
+
+        // Draw the frame
+        const img = new Image()
+        img.onload = () => {
+          const canvas = this.$refs.videoCanvas as HTMLCanvasElement
+          if (canvas) {
+            canvas.width = img.width
+            canvas.height = img.height
+            const ctx = canvas.getContext('2d')
+            if (ctx) {
+              ctx.drawImage(img, 0, 0)
+            }
+          }
+          URL.revokeObjectURL(url)
+        }
+        img.src = url
+      } catch (error) {
+        console.error('Error processing video chunk:', error)
+      }
     },
     cleanupVideoDecoder() {
       if (this.videoDecoder) {
@@ -268,7 +308,7 @@ export default Vue.extend({
 
         // Setup regular message subscriber
         this.subscriber = await this.session.declare_subscriber('**', {
-          handler: (sample: Sample) => {
+          handler: async (sample: Sample) => {
             const topic = sample.keyexpr().toString()
             const payload = sample.payload()
             const message: ZenohMessage = {
@@ -289,19 +329,12 @@ export default Vue.extend({
             if (
               topic === this.selected_topic
               && this.isVideoTopic
-              && this.videoDecoder
               && message.payload instanceof Uint8Array
             ) {
               try {
-                const chunkData = message.payload
-                const chunk = new EncodedVideoChunk({
-                  type: 'delta',
-                  timestamp: performance.now() * 1000,
-                  data: chunkData,
-                })
-                this.videoDecoder.decode(chunk)
+                await this.processVideoChunk(message.payload)
               } catch (error) {
-                console.error('Error decoding video chunk:', error)
+                console.error('Error processing video chunk:', error)
               }
             }
 
