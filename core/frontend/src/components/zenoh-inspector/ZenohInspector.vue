@@ -294,9 +294,16 @@ export default Vue.extend({
         this.videoChunks.push(chunkCopy)
         this.chunkCount++
 
+        // Limit videoChunks array size to 200
+        console.log('Chunk count:', this.chunkCount)
+        if (this.videoChunks.length > 200) {
+          this.videoChunks = this.videoChunks.slice(-200)
+        }
+
         //console.log('Chunk count:', this.chunkCount)
         let resultfinal = undefined
-        if (this.chunkCount > 50 && this.chunkCount % 30 == 0) {
+        if (this.chunkCount > 50 && this.chunkCount % 50 == 0) {
+          console.log("we are in")
           // Combine chunks here
           /*
           if (!this.sps || !this.pps) {
