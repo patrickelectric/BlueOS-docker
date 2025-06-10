@@ -121,6 +121,9 @@
 import {
   Config, Sample, SampleKind, Session, Subscriber,
 } from '@eclipse-zenoh/zenoh-ts'
+import { FFmpeg } from '@ffmpeg/ffmpeg'
+import type { LogEvent } from '@ffmpeg/ffmpeg/dist/esm/types'
+import { fetchFile, toBlobURL } from '@ffmpeg/util'
 import Vue from 'vue'
 
 interface ZenohMessage {
@@ -167,8 +170,8 @@ export default Vue.extend({
   watch: {
     selected_topic(newTopic: string | null) {
       if (newTopic && this.isVideoTopic) {
-        this.$nextTick(() => {
-          this.setupVideoDecoder()
+        this.$nextTick(async () => {
+          await this.setupVideoDecoder()
         })
         return
       }
@@ -184,7 +187,8 @@ export default Vue.extend({
     this.cleanupVideoDecoder()
   },
   methods: {
-    setupVideoDecoder() {
+    async setupVideoDecoder() {
+      console.log('Setting up video decoder')
       const canvas = this.$refs.videoCanvas as HTMLCanvasElement
       if (!canvas) {
         console.error('Canvas element not found')
@@ -197,22 +201,19 @@ export default Vue.extend({
         return
       }
 
-      try {
-        this.videoDecoder = new VideoDecoder({
-          output: (frame) => {
-            ctx.drawImage(frame, 0, 0)
-            frame.close()
-          },
-          error: (e) => console.error('VideoDecoder error:', e),
-        })
-
-        this.videoDecoder.configure({
-          codec: 'avc1.42E01E',
-          optimizeForLatency: true,
-        })
-      } catch (error) {
-        console.error('Failed to create VideoDecoder:', error)
-      }
+      // setup ffmpeg
+      const ffmpeg = new FFmpeg()
+      const baseURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core-mt@0.12.9/dist/esm'
+      ffmpeg.on('log', ({ message: msg }: LogEvent) => {
+        console.log('FFmpeg log:', msg)
+      })
+      await ffmpeg.load({
+        coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+        workerURL: await toBlobURL(`${baseURL}/ffmpeg-core.worker.js`, 'text/javascript')
+      })
+      //await ffmpeg.exec(['-i', videoBlobUrl, '-c', 'copy', 'output.mp4'])
+      console.log('FFmpeg loaded')
     },
     cleanupVideoDecoder() {
       if (this.videoDecoder) {
