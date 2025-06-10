@@ -221,9 +221,11 @@ export default Vue.extend({
       // setup ffmpeg
       const ffmpeg = new FFmpeg()
       const baseURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.9/dist/esm'
+      /*
       ffmpeg.on('log', ({ message: msg }: LogEvent) => {
         console.log('FFmpeg log:', msg)
       })
+        */
       await ffmpeg.load({
         coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
         wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm')
@@ -291,9 +293,9 @@ export default Vue.extend({
         this.videoChunks.push(chunkCopy)
         this.chunkCount++
 
-        console.log('Chunk count:', this.chunkCount)
+        //console.log('Chunk count:', this.chunkCount)
         let resultfinal = undefined
-        if (this.chunkCount >= 100) {
+        if (this.chunkCount > 50 && this.chunkCount % 30 == 0) {
           // Combine chunks here
           /*
           if (!this.sps || !this.pps) {
