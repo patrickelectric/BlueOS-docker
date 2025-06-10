@@ -250,45 +250,6 @@ export default Vue.extend({
         const startCode = new Uint8Array([0x00, 0x00, 0x00, 0x01])
         let offset = 0
 
-        /*
-        while (offset < chunkData.length - 4) {
-          // Look for start code
-          if (chunkData[offset] === 0x00 &&
-              chunkData[offset + 1] === 0x00 &&
-              chunkData[offset + 2] === 0x00 &&
-              chunkData[offset + 3] === 0x01) {
-
-            // Get NAL unit type (5 bits after start code)
-            const nalType = chunkData[offset + 4] & 0x1F
-
-            // Find next start code or end of data
-            let nextStart = offset + 4
-            while (nextStart < chunkData.length - 4) {
-              if (chunkData[nextStart] === 0x00 &&
-                  chunkData[nextStart + 1] === 0x00 &&
-                  chunkData[nextStart + 2] === 0x00 &&
-                  chunkData[nextStart + 3] === 0x01) {
-                break
-              }
-              nextStart++
-            }
-
-            // Extract NAL unit
-            const nalUnit = chunkData.slice(offset + 4, nextStart)
-
-            // Store SPS (type 7) and PPS (type 8)
-            if (nalType === 7) { // SPS
-              this.sps = nalUnit
-            } else if (nalType === 8) { // PPS
-              this.pps = nalUnit
-            }
-
-            offset = nextStart
-          } else {
-            offset++
-          }
-        }*/
-
         // Create a copy of the chunk before storing it
         const chunkCopy = new Uint8Array(chunkData.length)
         chunkCopy.set(chunkData)
@@ -343,7 +304,12 @@ export default Vue.extend({
         // Process current chunk for display
         await this.ffmpeg.writeFile('input.h264', resultfinal)
         try {
+          // Calculate how long it takes to run the next command
+          const start = Date.now()
           await this.ffmpeg.exec(['-sseof', '-1', '-i', 'input.h264', '-update', '1', 'frame.jpg']);
+          const end = Date.now()
+          const duration = end - start
+          console.log(`FFmpeg command took ${duration}ms`)
         } catch (error) {
           console.error('Error processing video chunk:', error)
           // delete input.h64
