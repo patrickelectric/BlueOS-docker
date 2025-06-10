@@ -160,6 +160,10 @@ export default Vue.extend({
       liveliness_subscriber: null as Subscriber | null,
       videoDecoder: null as VideoDecoder | null,
       ffmpeg: null as FFmpeg | null,
+      videoChunks: [] as Uint8Array[],
+      chunkCount: 0,
+      sps: null as Uint8Array | null,
+      pps: null as Uint8Array | null,
     }
   },
   computed: {
@@ -237,13 +241,111 @@ export default Vue.extend({
       }
 
       try {
-        // Write the video chunk to a file
-        await this.ffmpeg.writeFile('input.h264', chunkData)
+        // Check for SPS and PPS in the chunk
+        const startCode = new Uint8Array([0x00, 0x00, 0x00, 0x01])
+        let offset = 0
 
-        // Convert the H264 chunk to a frame
+        while (offset < chunkData.length - 4) {
+          // Look for start code
+          if (chunkData[offset] === 0x00 &&
+              chunkData[offset + 1] === 0x00 &&
+              chunkData[offset + 2] === 0x00 &&
+              chunkData[offset + 3] === 0x01) {
+
+            // Get NAL unit type (5 bits after start code)
+            const nalType = chunkData[offset + 4] & 0x1F
+
+            // Find next start code or end of data
+            let nextStart = offset + 4
+            while (nextStart < chunkData.length - 4) {
+              if (chunkData[nextStart] === 0x00 &&
+                  chunkData[nextStart + 1] === 0x00 &&
+                  chunkData[nextStart + 2] === 0x00 &&
+                  chunkData[nextStart + 3] === 0x01) {
+                break
+              }
+              nextStart++
+            }
+
+            // Extract NAL unit
+            const nalUnit = chunkData.slice(offset + 4, nextStart)
+
+            // Store SPS (type 7) and PPS (type 8)
+            if (nalType === 7) { // SPS
+              this.sps = nalUnit
+            } else if (nalType === 8) { // PPS
+              this.pps = nalUnit
+            }
+
+            offset = nextStart
+          } else {
+            offset++
+          }
+        }
+
+        // Create a copy of the chunk before storing it
+        const chunkCopy = new Uint8Array(chunkData.length)
+        chunkCopy.set(chunkData)
+        this.videoChunks.push(chunkCopy)
+        this.chunkCount++
+
+        console.log('Chunk count:', this.chunkCount)
+        let resultfinal = undefined
+        if (this.chunkCount == 100) {
+          // Combine chunks here
+          if (!this.sps || !this.pps) {
+            console.error('Missing SPS or PPS data')
+            return
+          }
+
+          // Calculate total length including start codes and SPS/PPS
+          const totalLength = this.videoChunks.reduce((acc, chunk) => acc + chunk.length + 4, 0) +
+                            (this.sps ? this.sps.length + 4 : 0) +
+                            (this.pps ? this.pps.length + 4 : 0)
+
+          const combinedChunks = new Uint8Array(totalLength)
+
+          // H264 start code (0x00000001)
+          const startCode = new Uint8Array([0x00, 0x00, 0x00, 0x01])
+
+          // Add SPS and PPS at the beginning
+          let offset = 0
+          if (this.sps) {
+            combinedChunks.set(startCode, offset)
+            offset += 4
+            combinedChunks.set(this.sps, offset)
+            offset += this.sps.length
+          }
+
+          if (this.pps) {
+            combinedChunks.set(startCode, offset)
+            offset += 4
+            combinedChunks.set(this.pps, offset)
+            offset += this.pps.length
+          }
+
+          // Copy chunks into the combined array with start codes
+          for (const chunk of this.videoChunks) {
+            // Add start code before each chunk
+            combinedChunks.set(startCode, offset)
+            offset += 4
+
+            // Add the chunk data
+            combinedChunks.set(chunk, offset)
+            offset += chunk.length
+          }
+
+          //await this.combineAndDownloadChunks(combinedChunks)
+          resultfinal = combinedChunks
+        }
+
+        if (!resultfinal) {
+          return
+        }
+
+        // Process current chunk for display
+        await this.ffmpeg.writeFile('input.h264', resultfinal)
         await this.ffmpeg.exec(['-i', 'input.h264', '-frames:v', '1', 'frame.jpg'])
-
-        // Read the frame
         const frame = await this.ffmpeg.readFile('frame.jpg')
         const blob = new Blob([frame], { type: 'image/jpeg' })
         const url = URL.createObjectURL(blob)
@@ -267,11 +369,39 @@ export default Vue.extend({
         console.error('Error processing video chunk:', error)
       }
     },
+
+    async combineAndDownloadChunks(combinedChunks: Uint8Array) {
+      try {
+        // Create a blob and download
+        const blob = new Blob([combinedChunks], { type: 'video/h264' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `video_${new Date().toISOString()}.h264`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+
+        // Reset buffer and counter
+        this.videoChunks = []
+        this.chunkCount = 0
+      } catch (error) {
+        console.error('Error combining and downloading chunks:', error)
+        // Reset buffer and counter even if there's an error
+        this.videoChunks = []
+        this.chunkCount = 0
+      }
+    },
+
     cleanupVideoDecoder() {
       if (this.videoDecoder) {
         this.videoDecoder.close()
         this.videoDecoder = null
       }
+      // Clear video chunks buffer when cleaning up
+      this.videoChunks = []
+      this.chunkCount = 0
     },
     formatMessage(message: ZenohMessage | null): string {
       if (!message) return 'No messages received yet'
