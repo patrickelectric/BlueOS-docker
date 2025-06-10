@@ -164,6 +164,7 @@ export default Vue.extend({
       chunkCount: 0,
       sps: null as Uint8Array | null,
       pps: null as Uint8Array | null,
+      process_video_chunk: false,
     }
   },
   computed: {
@@ -295,14 +296,20 @@ export default Vue.extend({
         this.chunkCount++
 
         // Limit videoChunks array size to 200
-        console.log('Chunk count:', this.chunkCount)
+        //console.log('Chunk count:', this.chunkCount)
         if (this.videoChunks.length > 200) {
           this.videoChunks = this.videoChunks.slice(-200)
         }
 
         //console.log('Chunk count:', this.chunkCount)
         let resultfinal = undefined
-        if (this.chunkCount > 50 && this.chunkCount % 50 == 0) {
+
+        if (this.process_video_chunk) {
+          return
+        }
+
+        if (this.chunkCount > 50) {
+          this.process_video_chunk = true
           console.log("we are in")
           // Combine chunks here
           /*
@@ -329,6 +336,7 @@ export default Vue.extend({
         }
 
         if (!resultfinal) {
+          this.process_video_chunk = false
           return
         }
 
@@ -348,6 +356,8 @@ export default Vue.extend({
             coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
             wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm')
           })
+          this.process_video_chunk = false
+          return
         }
         const frame = await this.ffmpeg.readFile('frame.jpg')
         const blob = new Blob([frame], { type: 'image/jpeg' })
@@ -371,6 +381,7 @@ export default Vue.extend({
       } catch (error) {
         console.error('Error processing video chunk:', error)
       }
+      this.process_video_chunk = false
     },
 
     async combineAndDownloadChunks(combinedChunks: Uint8Array) {
