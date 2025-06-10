@@ -237,6 +237,7 @@ export default Vue.extend({
     },
 
     async processVideoChunk(chunkData: Uint8Array) {
+      const baseURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.9/dist/esm'
       if (!this.ffmpeg) {
         console.error('FFmpeg not initialized')
         return
@@ -326,7 +327,21 @@ export default Vue.extend({
 
         // Process current chunk for display
         await this.ffmpeg.writeFile('input.h264', resultfinal)
-        await this.ffmpeg.exec(['-sseof', '-1', '-i', 'input.h264', '-update', '1', 'frame.jpg']);
+        try {
+          await this.ffmpeg.exec(['-sseof', '-1', '-i', 'input.h264', '-update', '1', 'frame.jpg']);
+        } catch (error) {
+          console.error('Error processing video chunk:', error)
+          // delete input.h64
+          //this.ffmpeg.deleteFile('input.h264')
+
+          // reinit ffmpeg
+          this.ffmpeg.terminate()
+          this.ffmpeg = new FFmpeg()
+          await this.ffmpeg.load({
+            coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+            wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm')
+          })
+        }
         const frame = await this.ffmpeg.readFile('frame.jpg')
         const blob = new Blob([frame], { type: 'image/jpeg' })
         const url = URL.createObjectURL(blob)
