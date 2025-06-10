@@ -240,11 +240,13 @@ export default Vue.extend({
         return
       }
 
+
       try {
         // Check for SPS and PPS in the chunk
         const startCode = new Uint8Array([0x00, 0x00, 0x00, 0x01])
         let offset = 0
 
+        /*
         while (offset < chunkData.length - 4) {
           // Look for start code
           if (chunkData[offset] === 0x00 &&
@@ -281,7 +283,7 @@ export default Vue.extend({
           } else {
             offset++
           }
-        }
+        }*/
 
         // Create a copy of the chunk before storing it
         const chunkCopy = new Uint8Array(chunkData.length)
@@ -291,51 +293,28 @@ export default Vue.extend({
 
         console.log('Chunk count:', this.chunkCount)
         let resultfinal = undefined
-        if (this.chunkCount == 100) {
+        if (this.chunkCount >= 100) {
           // Combine chunks here
+          /*
           if (!this.sps || !this.pps) {
             console.error('Missing SPS or PPS data')
             return
           }
+            */
 
-          // Calculate total length including start codes and SPS/PPS
-          const totalLength = this.videoChunks.reduce((acc, chunk) => acc + chunk.length + 4, 0) +
-                            (this.sps ? this.sps.length + 4 : 0) +
-                            (this.pps ? this.pps.length + 4 : 0)
+          // Calculate total length of all chunks
+          const totalLength = this.videoChunks.reduce((acc, chunk) => acc + chunk.length, 0)
 
+          // Create combined array
           const combinedChunks = new Uint8Array(totalLength)
 
-          // H264 start code (0x00000001)
-          const startCode = new Uint8Array([0x00, 0x00, 0x00, 0x01])
-
-          // Add SPS and PPS at the beginning
+          // Copy all chunks into the combined array
           let offset = 0
-          if (this.sps) {
-            combinedChunks.set(startCode, offset)
-            offset += 4
-            combinedChunks.set(this.sps, offset)
-            offset += this.sps.length
-          }
-
-          if (this.pps) {
-            combinedChunks.set(startCode, offset)
-            offset += 4
-            combinedChunks.set(this.pps, offset)
-            offset += this.pps.length
-          }
-
-          // Copy chunks into the combined array with start codes
           for (const chunk of this.videoChunks) {
-            // Add start code before each chunk
-            combinedChunks.set(startCode, offset)
-            offset += 4
-
-            // Add the chunk data
             combinedChunks.set(chunk, offset)
             offset += chunk.length
           }
 
-          //await this.combineAndDownloadChunks(combinedChunks)
           resultfinal = combinedChunks
         }
 
@@ -345,7 +324,7 @@ export default Vue.extend({
 
         // Process current chunk for display
         await this.ffmpeg.writeFile('input.h264', resultfinal)
-        await this.ffmpeg.exec(['-i', 'input.h264', '-frames:v', '1', 'frame.jpg'])
+        await this.ffmpeg.exec(['-sseof', '-1', '-i', 'input.h264', '-update', '1', 'frame.jpg']);
         const frame = await this.ffmpeg.readFile('frame.jpg')
         const blob = new Blob([frame], { type: 'image/jpeg' })
         const url = URL.createObjectURL(blob)
