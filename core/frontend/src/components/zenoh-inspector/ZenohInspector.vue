@@ -216,7 +216,16 @@ export default Vue.extend({
       await ffmpeg.exec(['-i', 'input.webm', '-frames:v', '1', 'frame.jpg'])
       console.log('FFmpeg executed')
       const frame = await ffmpeg.readFile('frame.jpg')
-      console.log('FFmpeg frame:', frame)
+      const blob = new Blob([frame.buffer], { type: 'image/jpeg' });
+      const url = URL.createObjectURL(blob);
+      const img = new Image();
+      img.onload = () => {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+        URL.revokeObjectURL(url);
+      };
+      img.src = url;
     },
     cleanupVideoDecoder() {
       if (this.videoDecoder) {
