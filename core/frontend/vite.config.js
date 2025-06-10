@@ -28,8 +28,12 @@ export default defineConfig(({ command, mode }) => {
         registerType: 'autoUpdate',
         devOptions: {
           enabled: true,
+          type: 'module',
         },
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+        workbox: {
+          globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        },
       }),
       Components({
         // generate `components.d.ts` global declarations

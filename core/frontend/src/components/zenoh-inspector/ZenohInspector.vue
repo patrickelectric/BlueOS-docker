@@ -122,7 +122,7 @@ import {
   Config, Sample, SampleKind, Session, Subscriber,
 } from '@eclipse-zenoh/zenoh-ts'
 import { FFmpeg } from '@ffmpeg/ffmpeg'
-import type { LogEvent } from '@ffmpeg/ffmpeg/dist/esm/types'
+import type { LogEvent } from '@ffmpeg/ffmpeg'
 import { fetchFile, toBlobURL } from '@ffmpeg/util'
 import Vue from 'vue'
 
@@ -203,14 +203,13 @@ export default Vue.extend({
 
       // setup ffmpeg
       const ffmpeg = new FFmpeg()
-      const baseURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core-mt@0.12.9/dist/esm'
+      const baseURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.9/dist/esm'
       ffmpeg.on('log', ({ message: msg }: LogEvent) => {
         console.log('FFmpeg log:', msg)
       })
       await ffmpeg.load({
         coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-        workerURL: await toBlobURL(`${baseURL}/ffmpeg-core.worker.js`, 'text/javascript')
+        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm')
       })
       //await ffmpeg.exec(['-i', videoBlobUrl, '-c', 'copy', 'output.mp4'])
       console.log('FFmpeg loaded')
