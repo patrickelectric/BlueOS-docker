@@ -9,12 +9,12 @@ servers:
 
 paths:
   /version/current:
-    get:
-      operationId: main.get_version
-      summary: Return the current running version of BlueOS
-      responses:
-        '200':
-          description: The current running version of BlueOS
+    # get:
+    #   operationId: main.get_version
+    #   summary: Return the current running version of BlueOS
+    #   responses:
+    #     '200':
+    #       description: The current running version of BlueOS
     post:
       operationId: main.set_version
       summary: Sets the current version of BlueOS to a new tag
@@ -37,12 +37,12 @@ paths:
                   example: master
 
   /bootstrap/current:
-    get:
-      operationId: main.get_bootstrap_version
-      summary: Return the current running version of BlueOS-bootstrap
-      responses:
-        '200':
-          description: The current running version of BlueOS-bootstrap
+    # get:
+    #   operationId: main.get_bootstrap_version
+    #   summary: Return the current running version of BlueOS-bootstrap
+    #   responses:
+    #     '200':
+    #       description: The current running version of BlueOS-bootstrap
     post:
       operationId: main.set_bootstrap_version
       summary: Sets the current version of BlueOS-bootstrap to a new tag
@@ -61,12 +61,12 @@ paths:
                   type: string
                   example: master
 
-  /version/restart:
-    post:
-      operationId: main.restart
-      responses:
-        '200':
-          description: Restart the currently running docker container
+  # /version/restart:
+  #   post:
+  #     operationId: main.restart
+  #     responses:
+  #       '200':
+  #         description: Restart the currently running docker container
 
   /version/delete:
     delete:
