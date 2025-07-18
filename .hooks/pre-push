@@ -87,24 +87,24 @@ git ls-files '*.sh' | xargs -L 1 shellcheck --exclude=SC2005,SC2015,SC2046,SC204
 # Goes to the core directory
 cd core
 
-echo "Running isort.."
+echo "Running isort.. $(isort --version)"
 # Run isort for each python project
 dirname $(git ls-files "$repository_path/*/setup.py") | xargs -I {} isort --src-path="{}" ${isort_extra_args} "{}"
 
 # This will only get the python files track by git, not including submodules
 python_files=$(git ls-files '*.py')
 
-echo "Running black.."
+echo "Running black.. $(black --version)"
 black ${black_extra_args} $python_files
 
 # do not run the rest of the script if running for fixing
 [ "$fixing" = true ] && exit 0
 
 # Faster than pylint to check for issues
-echo "Running ruff.."
+echo "Running ruff.. $(ruff --version)"
 ruff $python_files
 
-echo "Running pylint.."
+echo "Running pylint.. $(pylint --version)"
 pylint $python_files
 
 echo "Running mypy.."
