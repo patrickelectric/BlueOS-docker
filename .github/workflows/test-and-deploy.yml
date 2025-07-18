@@ -36,6 +36,8 @@ jobs:
     - name: Install the latest version of uv
       uses: astral-sh/setup-uv@v6
 
+    - uses: lhotari/action-upterm@v1
+
     - name: Run tests
       run: |
         .hooks/pre-push
