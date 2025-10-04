@@ -74,9 +74,7 @@ export default Vue.extend({
       )
     },
     available_boards(): FlightController[] {
-      return autopilot.available_boards.filter(
-        (board: FlightController) => !board.flags.includes(FlightControllerFlags.is_bootloader),
-      )
+      return autopilot.available_boards
     },
     form(): VForm {
       return this.$refs.form as VForm

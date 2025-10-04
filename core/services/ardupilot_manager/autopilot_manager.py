@@ -456,7 +456,7 @@ class AutoPilotManager(metaclass=Singleton):
 
     async def change_board(self, board: FlightController) -> None:
         logger.info(f"Trying to run with '{board.name}'.")
-        boards = await self.available_boards()
+        boards = await self.available_boards(True)
         if not any(board.name == detectedboard.name for detectedboard in boards):
             logger.error(f"Attempted to change active board to {board} which is not detected.")
             logger.info(f"detected boards are: {boards}")
@@ -578,7 +578,7 @@ class AutoPilotManager(metaclass=Singleton):
 
         await self.setup()
         try:
-            available_boards = await self.available_boards()
+            available_boards = await self.available_boards(True)
             if not available_boards:
                 raise RuntimeError("No boards available.")
             if len(available_boards) > 1:
