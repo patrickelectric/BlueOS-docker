@@ -109,3 +109,12 @@ class AbstractWifiManager:
 
     def add_arguments(self, _parser: ArgumentParser) -> None:
         """Add arguments to the parser"""
+
+    @property
+    def interface_name(self) -> str:
+        """Get the current interface name."""
+        return "wlan0"
+
+    def get_available_interfaces(self) -> List[str]:
+        """Get list of available WLAN interfaces."""
+        return []

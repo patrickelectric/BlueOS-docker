@@ -4,6 +4,11 @@ from typing import Optional
 from pydantic import BaseModel
 
 
+class WlanInterface(BaseModel):
+    name: str
+    is_active: bool
+
+
 class HotspotStatus(BaseModel):
     supported: bool
     enabled: bool

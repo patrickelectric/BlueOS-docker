@@ -28,6 +28,7 @@ from wifi_handlers.wpa_supplicant.wpa_supplicant import WPASupplicant
 class WifiManager(AbstractWifiManager):
     wpa = WPASupplicant()
     wpa_path: Optional[str] = None
+    _interface_name: str = "wlan0"
 
     async def can_work(self) -> bool:
         return bool(get_host_os() == HostOs.Bullseye)
@@ -184,11 +185,40 @@ class WifiManager(AbstractWifiManager):
     def hotspot(self) -> HotspotManager:
         if self._hotspot is None:
             try:
-                self._hotspot = HotspotManager("wlan0", IPv4Address("192.168.42.1"))
+                self._hotspot = HotspotManager(self._interface_name, IPv4Address("192.168.42.1"))
             except Exception as error:
                 self._hotspot = None
                 raise error
         return self._hotspot
+
+    @property
+    def interface_name(self) -> str:
+        return self._interface_name
+
+    def get_available_interfaces(self) -> List[str]:
+        """Get list of available WLAN interfaces from wpa_supplicant sockets."""
+        wpa_socket_folder = "/var/run/wpa_supplicant/"
+        try:
+
+            def is_socket(file_path: str) -> bool:
+                try:
+                    mode = os.stat(file_path).st_mode
+                    return stat.S_ISSOCK(mode)
+                except Exception:
+                    return False
+
+            entries = os.scandir(wpa_socket_folder)
+            available_sockets = sorted(
+                [
+                    entry.name
+                    for entry in entries
+                    if entry.name.startswith(("wlan", "wifi", "wlp")) and is_socket(entry.path)
+                ]
+            )
+            return available_sockets
+        except Exception as error:
+            logger.warning(f"Could not list available interfaces: {error}")
+            return []
 
     async def get_wifi_available(self) -> List[ScannedWifiNetwork]:
         """Get a dict from the wifi signals available"""
@@ -391,7 +421,7 @@ class WifiManager(AbstractWifiManager):
 
     def trigger_dhcp_client(self) -> None:
         """Trigger dhclient to get an IP address."""
-        subprocess.run(["dhcpcd", "-n", "wlan0"], check=False)
+        subprocess.run(["dhcpcd", "-n", self._interface_name], check=False)
 
     async def auto_reconnect(self, seconds_before_reconnecting: float) -> None:
         """Re-enable all saved networks if disconnected for more than specified time.
@@ -559,6 +589,9 @@ class WifiManager(AbstractWifiManager):
                 logger.info(f"Going to use {socket_name} file")
             WLAN_SOCKET = os.path.join(wpa_socket_folder, socket_name)
             self.wpa_path = WLAN_SOCKET
+            # Extract interface name from socket path (e.g., /var/run/wpa_supplicant/wlan0 -> wlan0)
+            self._interface_name = os.path.basename(socket_name)
+            logger.info(f"Using interface: {self._interface_name}")
             await self.connect(WLAN_SOCKET)
         except Exception as socket_connection_error:
             logger.warning(f"Could not connect with wifi socket. {socket_connection_error}")

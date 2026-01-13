@@ -48,3 +48,8 @@ export interface NetworkCredentials {
     ssid: string
     password: string
 }
+
+export interface WlanInterface {
+    name: string
+    is_active: boolean
+}

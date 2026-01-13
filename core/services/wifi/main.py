@@ -24,6 +24,7 @@ from typedefs import (
     SavedWifiNetwork,
     ScannedWifiNetwork,
     WifiCredentials,
+    WlanInterface,
 )
 from uvicorn import Config, Server
 from wifi_handlers.AbstractWifiHandler import AbstractWifiManager
@@ -161,6 +162,22 @@ async def set_hotspot_credentials(credentials: WifiCredentials) -> Any:
 def get_hotspot_credentials() -> Any:
     assert wifi_manager is not None
     return wifi_manager.hotspot_credentials()
+
+
+@app.get("/interfaces", response_model=List[WlanInterface], summary="Get available WLAN interfaces.")
+@version(1, 0)
+def get_interfaces() -> List[WlanInterface]:
+    assert wifi_manager is not None
+    available = wifi_manager.get_available_interfaces()
+    current = wifi_manager.interface_name
+    return [WlanInterface(name=iface, is_active=iface == current) for iface in available]
+
+
+@app.get("/interface", summary="Get current WLAN interface name.")
+@version(1, 0)
+def get_current_interface() -> str:
+    assert wifi_manager is not None
+    return wifi_manager.interface_name
 
 
 app = VersionedFastAPI(app, version="1.0.0", prefix_format="/v{major}.{minor}", enable_latest=True)

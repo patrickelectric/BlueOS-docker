@@ -615,3 +615,30 @@ class NetworkManagerWifi(AbstractWifiManager):
             if not await self.hotspot_is_running():
                 logger.info("No network connection detected, enabling hotspot")
                 await self.enable_hotspot()
+
+    @property
+    def interface_name(self) -> str:
+        """Get the current interface name."""
+        if self._device_path is None:
+            return "wlan0"
+        # Extract interface name from device path asynchronously is complex,
+        # so we return a default for now
+        return "wlan0"
+
+    def get_available_interfaces(self) -> List[str]:
+        """Get list of available WLAN interfaces via NetworkManager."""
+        try:
+            # Use synchronous method to list interfaces
+            result = subprocess.run(
+                ["nmcli", "-t", "-f", "DEVICE,TYPE", "device"], capture_output=True, text=True, check=True
+            )
+            interfaces = []
+            for line in result.stdout.strip().split("\n"):
+                if line:
+                    parts = line.split(":")
+                    if len(parts) >= 2 and parts[1] == "wifi":
+                        interfaces.append(parts[0])
+            return sorted(interfaces)
+        except Exception as error:
+            logger.warning(f"Could not list available interfaces: {error}")
+            return []
