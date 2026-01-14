@@ -4,7 +4,8 @@ import {
 
 import store from '@/store'
 import {
-  Network, NetworkCredentials, SavedNetwork, WifiStatus, HotspotStatus, WlanInterface,
+  HotspotStatus, InterfaceData,
+  InterfaceStatus, Network, NetworkCredentials, SavedNetwork, WifiStatus, WlanInterface,
 } from '@/types/wifi'
 import { sorted_networks } from '@/utils/wifi'
 
@@ -17,6 +18,13 @@ import { sorted_networks } from '@/utils/wifi'
 class WifiStore extends VuexModule {
   API_URL = '/wifi-manager/v1.0'
 
+  // Per-interface data storage
+  interface_data: Record<string, InterfaceData> = {}
+
+  // Interface status from /all_status endpoint
+  interface_statuses: InterfaceStatus[] = []
+
+  // Legacy single-interface properties (for backwards compatibility)
   current_network: Network | null = null
 
   available_networks: Network[] | null = null
@@ -31,7 +39,7 @@ class WifiStore extends VuexModule {
 
   hotspot_credentials: NetworkCredentials | null = null
 
-  is_loading: boolean = true
+  is_loading = true
 
   available_interfaces: WlanInterface[] = []
 
@@ -112,12 +120,82 @@ class WifiStore extends VuexModule {
     this.current_interface = interfaceName
   }
 
+  @Mutation
+  setInterfaceStatuses(statuses: InterfaceStatus[]): void {
+    this.interface_statuses = statuses
+  }
+
+  @Mutation
+  setInterfaceCurrentNetwork(payload: { interfaceName: string; network: Network | null }): void {
+    if (!this.interface_data[payload.interfaceName]) {
+      this.interface_data[payload.interfaceName] = {
+        current_network: null,
+        available_networks: null,
+        saved_networks: null,
+        network_status: null,
+      }
+    }
+    this.interface_data[payload.interfaceName].current_network = payload.network
+  }
+
+  @Mutation
+  setInterfaceAvailableNetworks(payload: { interfaceName: string; networks: Network[] | null }): void {
+    if (!this.interface_data[payload.interfaceName]) {
+      this.interface_data[payload.interfaceName] = {
+        current_network: null,
+        available_networks: null,
+        saved_networks: null,
+        network_status: null,
+      }
+    }
+    this.interface_data[payload.interfaceName].available_networks = payload.networks
+  }
+
+  @Mutation
+  setInterfaceSavedNetworks(payload: { interfaceName: string; networks: SavedNetwork[] | null }): void {
+    if (!this.interface_data[payload.interfaceName]) {
+      this.interface_data[payload.interfaceName] = {
+        current_network: null,
+        available_networks: null,
+        saved_networks: null,
+        network_status: null,
+      }
+    }
+    this.interface_data[payload.interfaceName].saved_networks = payload.networks
+  }
+
+  @Mutation
+  setInterfaceNetworkStatus(payload: { interfaceName: string; status: WifiStatus | null }): void {
+    if (!this.interface_data[payload.interfaceName]) {
+      this.interface_data[payload.interfaceName] = {
+        current_network: null,
+        available_networks: null,
+        saved_networks: null,
+        network_status: null,
+      }
+    }
+    this.interface_data[payload.interfaceName].network_status = payload.status
+  }
+
   get connectable_networks(): Network[] | null {
     if (this.available_networks === null) {
       return null
     }
     return sorted_networks(this.available_networks
       .filter((network: Network) => network.ssid !== this.current_network?.ssid))
+  }
+
+  getInterfaceData(interfaceName: string): InterfaceData | null {
+    return this.interface_data[interfaceName] || null
+  }
+
+  getInterfaceConnectableNetworks(interfaceName: string): Network[] | null {
+    const data = this.interface_data[interfaceName]
+    if (!data || data.available_networks === null) {
+      return null
+    }
+    return sorted_networks(data.available_networks
+      .filter((network: Network) => network.ssid !== data.current_network?.ssid))
   }
 }
 

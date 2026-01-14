@@ -114,6 +114,7 @@
       v-if="selected_network"
       v-model="show_connection_dialog"
       :network="selected_network"
+      :interface-name="active_interface"
       @forget="forgetNetwork"
     />
 
@@ -122,6 +123,7 @@
       v-model="show_disconnection_dialog"
       :network="current_network"
       :status="wifi_status"
+      :interface-name="active_interface"
     />
 
     <wifi-settings-dialog v-model="show_settings_menu" />
@@ -182,6 +184,10 @@ export default Vue.extend({
       type: Boolean,
       default: true,
     },
+    interfaceName: {
+      type: String,
+      default: null,
+    },
   },
   data() {
     return {
@@ -196,18 +202,52 @@ export default Vue.extend({
     }
   },
   computed: {
+    active_interface(): string | null {
+      return this.interfaceName || wifi.current_interface
+    },
     wifi_is_loading(): boolean {
+      if (this.active_interface) {
+        const data = wifi.interface_data[this.active_interface]
+        return !data || data.available_networks === null
+      }
       return wifi.is_loading
     },
     wifi_status(): WifiStatus | null {
+      if (this.active_interface) {
+        return wifi.interface_data[this.active_interface]?.network_status ?? null
+      }
       return wifi.network_status
     },
     current_network(): Network | null {
-      this.$emit('current-network', wifi.current_network)
-      return wifi.current_network
+      let network: Network | null = null
+      if (this.active_interface) {
+        network = wifi.interface_data[this.active_interface]?.current_network ?? null
+      } else {
+        network = wifi.current_network
+      }
+      this.$emit('current-network', network)
+      return network
+    },
+    interface_available_networks(): Network[] | null {
+      if (this.active_interface) {
+        return wifi.interface_data[this.active_interface]?.available_networks ?? null
+      }
+      return wifi.available_networks
+    },
+    interface_connectable_networks(): Network[] | null {
+      const networks = this.interface_available_networks
+      if (networks === null) {
+        return null
+      }
+      const currentSsid = this.current_network?.ssid
+      return networks.filter((network: Network) => network.ssid !== currentSsid)
     },
     connectable_networks(): Network[] | undefined {
-      return uniqBy(wifi.connectable_networks, 'ssid')
+      const networks = this.interface_connectable_networks
+      if (networks === null) {
+        return undefined
+      }
+      return uniqBy(networks, 'ssid')
         // Move known networks to the top
         .sort((a: Network, b: Network) => Number(b.saved) - Number(a.saved))
     },
@@ -283,10 +323,14 @@ export default Vue.extend({
     },
     async toggleHotspot(): Promise<void> {
       this.hotspot_status_loading = true
+      const params: Record<string, unknown> = { enable: !this.hotspot_status }
+      if (this.active_interface) {
+        params.interface = this.active_interface
+      }
       await back_axios({
         method: 'post',
         url: `${wifi.API_URL}/hotspot`,
-        params: { enable: !this.hotspot_status },
+        params,
         timeout: 20000,
       })
         .then(() => {

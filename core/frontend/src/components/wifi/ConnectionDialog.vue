@@ -145,6 +145,10 @@ export default Vue.extend({
       type: Boolean,
       default: false,
     },
+    interfaceName: {
+      type: String,
+      default: null,
+    },
   },
   data() {
     return {
@@ -201,6 +205,10 @@ export default Vue.extend({
     async connectToWifiNetwork(): Promise<void> {
       const credentials: NetworkCredentials = { ssid: this.real_ssid, password: this.password }
       this.connection_status = ConnectionStatus.Connecting
+      const params: Record<string, unknown> = { hidden: this.is_hidden }
+      if (this.interfaceName) {
+        params.interface = this.interfaceName
+      }
       try {
         wifi.setLoading(true)
         await back_axios({
@@ -208,7 +216,7 @@ export default Vue.extend({
           url: `${wifi.API_URL}/connect`,
           timeout: 50000,
           data: credentials,
-          params: { hidden: this.is_hidden },
+          params,
         })
         this.showDialog(false)
         this.connection_status = ConnectionStatus.Succeeded
@@ -225,11 +233,15 @@ export default Vue.extend({
     },
     async removeSavedWifiNetwork(): Promise<void> {
       wifi.setLoading(true)
+      const params: Record<string, unknown> = { ssid: this.network.ssid }
+      if (this.interfaceName) {
+        params.interface = this.interfaceName
+      }
       await back_axios({
         method: 'post',
         url: `${wifi.API_URL}/remove`,
         timeout: 10000,
-        params: { ssid: this.network.ssid },
+        params,
       }).then(() => {
         this.$emit('forget', this.network)
       })

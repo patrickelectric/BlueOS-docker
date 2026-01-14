@@ -196,7 +196,7 @@ class WifiManager(AbstractWifiManager):
         return self._interface_name
 
     def get_available_interfaces(self) -> List[str]:
-        """Get list of available WLAN interfaces from wpa_supplicant sockets."""
+        """Get list of available WLAN interfaces from wpa_supplicant sockets, excluding virtual AP interfaces."""
         wpa_socket_folder = "/var/run/wpa_supplicant/"
         try:
 
@@ -212,7 +212,10 @@ class WifiManager(AbstractWifiManager):
                 [
                     entry.name
                     for entry in entries
-                    if entry.name.startswith(("wlan", "wifi", "wlp")) and is_socket(entry.path)
+                    # Include wlan/wifi/wlp interfaces, but exclude virtual AP interfaces (uap*)
+                    if entry.name.startswith(("wlan", "wifi", "wlp"))
+                    and not entry.name.startswith("uap")
+                    and is_socket(entry.path)
                 ]
             )
             return available_sockets

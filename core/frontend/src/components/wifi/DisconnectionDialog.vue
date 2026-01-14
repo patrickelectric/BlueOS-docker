@@ -105,6 +105,10 @@ export default Vue.extend({
       type: Boolean,
       default: false,
     },
+    interfaceName: {
+      type: String,
+      default: null,
+    },
   },
   data() {
     return {
@@ -135,14 +139,22 @@ export default Vue.extend({
     async disconnectFromWifiNetwork(): Promise<void> {
       wifi.setLoading(true)
       this.showDialog(false)
+      const params: Record<string, unknown> = {}
+      if (this.interfaceName) {
+        params.interface = this.interfaceName
+      }
       await back_axios({
         method: 'get',
         url: `${wifi.API_URL}/disconnect`,
+        params,
         timeout: 10000,
       })
         .then(() => {
           wifi.setNetworkStatus(null)
           wifi.setCurrentNetwork(null)
+          if (this.interfaceName) {
+            wifi.setInterfaceCurrentNetwork({ interfaceName: this.interfaceName, network: null })
+          }
         })
         .catch((error) => {
           const message = `Could not disconnect from wifi network: ${error.message}.`

@@ -53,3 +53,17 @@ export interface WlanInterface {
     name: string
     is_active: boolean
 }
+
+export interface InterfaceStatus {
+    interface: string
+    connected: boolean
+    ssid: string | null
+    signal: number | null
+}
+
+export interface InterfaceData {
+    current_network: Network | null
+    available_networks: Network[] | null
+    saved_networks: SavedNetwork[] | null
+    network_status: WifiStatus | null
+}

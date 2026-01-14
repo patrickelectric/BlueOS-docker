@@ -9,6 +9,15 @@ class WlanInterface(BaseModel):
     is_active: bool
 
 
+class InterfaceStatus(BaseModel):
+    """Status information for a single WiFi interface."""
+
+    interface: str
+    connected: bool
+    ssid: Optional[str]
+    signal: Optional[int]
+
+
 class HotspotStatus(BaseModel):
     supported: bool
     enabled: bool

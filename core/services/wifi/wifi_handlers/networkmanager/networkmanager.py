@@ -626,18 +626,19 @@ class NetworkManagerWifi(AbstractWifiManager):
         return "wlan0"
 
     def get_available_interfaces(self) -> List[str]:
-        """Get list of available WLAN interfaces via NetworkManager."""
+        """Get list of available WLAN interfaces, excluding virtual AP interfaces."""
         try:
-            # Use synchronous method to list interfaces
-            result = subprocess.run(
-                ["nmcli", "-t", "-f", "DEVICE,TYPE", "device"], capture_output=True, text=True, check=True
-            )
+            result = subprocess.run(["ip", "-o", "link", "show"], capture_output=True, text=True, check=True)
             interfaces = []
             for line in result.stdout.strip().split("\n"):
                 if line:
+                    # Format: "2: wlan0: <BROADCAST,MULTICAST,UP,LOWER_UP> ..."
                     parts = line.split(":")
-                    if len(parts) >= 2 and parts[1] == "wifi":
-                        interfaces.append(parts[0])
+                    if len(parts) >= 2:
+                        iface_name = parts[1].strip()
+                        # Include wlan/wifi/wlp interfaces, but exclude virtual AP interfaces (uap*)
+                        if iface_name.startswith(("wlan", "wifi", "wlp")) and iface_name != self._ap_interface:
+                            interfaces.append(iface_name)
             return sorted(interfaces)
         except Exception as error:
             logger.warning(f"Could not list available interfaces: {error}")
