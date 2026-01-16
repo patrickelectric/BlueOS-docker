@@ -139,10 +139,12 @@ class NetworkManagerWifi(AbstractWifiManager):  # pylint: disable=too-many-insta
 
         logger.info(f"Using WiFi device: {self._interface_name} ({self._device_path})")
 
-        # Create virtual AP interface if needed
-        await self._create_virtual_interface()
+        # Create virtual AP interface and hotspot watchdog only for wlan0
+        if self._interface_name == "wlan0":
+            await self._create_virtual_interface()
+            self._tasks.append(asyncio.get_event_loop().create_task(self.hotspot_watchdog()))
+
         self._tasks.append(asyncio.get_event_loop().create_task(self._autoscan()))
-        self._tasks.append(asyncio.get_event_loop().create_task(self.hotspot_watchdog()))
 
     async def _autoscan(self) -> None:
 
@@ -326,6 +328,11 @@ class NetworkManagerWifi(AbstractWifiManager):  # pylint: disable=too-many-insta
 
     # pylint: disable=too-many-branches
     async def enable_hotspot(self, save_settings: bool = True) -> bool:
+        # Hotspot is only supported on wlan0
+        if self._interface_name != "wlan0":
+            logger.debug(f"Hotspot not supported on {self._interface_name}, only wlan0")
+            return False
+
         if not await self._create_virtual_interface():
             logger.error("Failed to create virtual interface for AP")
             return False
@@ -447,7 +454,8 @@ class NetworkManagerWifi(AbstractWifiManager):  # pylint: disable=too-many-insta
         return self._create_ap_process is not None and self._create_ap_process.poll() is None
 
     async def supports_hotspot(self) -> bool:
-        return True
+        # Hotspot is only supported on wlan0
+        return self._interface_name == "wlan0"
 
     async def status(self) -> WifiStatus:
         if not self._device_path:
