@@ -247,8 +247,8 @@ class NetworkManagerWifi(AbstractWifiManager):  # pylint: disable=too-many-insta
         connection: dict[str, dict[str, tuple[str, Any]]] = {
             "connection": {
                 "type": ("s", "802-11-wireless"),
-                "id": ("s", credentials.ssid),
-                "interface-name": ("s", "wlan0"),
+                "id": ("s", f"{credentials.ssid}-{self._interface_name}"),
+                "interface-name": ("s", self._interface_name),
                 "autoconnect": ("b", True),
             },
             "802-11-wireless": {
@@ -278,7 +278,7 @@ class NetworkManagerWifi(AbstractWifiManager):  # pylint: disable=too-many-insta
             await self.enable_hotspot()
 
     async def _find_existing_connection(self, credentials: WifiCredentials) -> Optional[str]:
-        """Find existing connection for given SSID, checking password if provided"""
+        """Find existing connection for given SSID, checking password and interface compatibility."""
         try:
             if not self._nm_settings:
                 return None
@@ -292,6 +292,12 @@ class NetworkManagerWifi(AbstractWifiManager):  # pylint: disable=too-many-insta
                         continue
 
                     if profile.wireless.ssid.decode("utf-8") != credentials.ssid:
+                        continue
+
+                    # Check if connection is compatible with this interface
+                    conn_iface = profile.connection.interface_name if profile.connection else None
+                    if conn_iface and conn_iface != self._interface_name:
+                        logger.debug(f"Skipping connection for {credentials.ssid}: bound to {conn_iface}, not {self._interface_name}")
                         continue
 
                     # If no password provided, we can use any existing connection
