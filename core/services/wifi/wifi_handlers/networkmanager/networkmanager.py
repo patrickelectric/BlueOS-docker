@@ -297,7 +297,9 @@ class NetworkManagerWifi(AbstractWifiManager):  # pylint: disable=too-many-insta
                     # Check if connection is compatible with this interface
                     conn_iface = profile.connection.interface_name if profile.connection else None
                     if conn_iface and conn_iface != self._interface_name:
-                        logger.debug(f"Skipping connection for {credentials.ssid}: bound to {conn_iface}, not {self._interface_name}")
+                        logger.debug(
+                            f"Skipping connection for {credentials.ssid}: bound to {conn_iface}, not {self._interface_name}"
+                        )
                         continue
 
                     # If no password provided, we can use any existing connection
