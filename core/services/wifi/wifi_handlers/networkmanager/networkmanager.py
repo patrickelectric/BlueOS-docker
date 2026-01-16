@@ -32,7 +32,7 @@ class InvalidConfigurationError(Exception):
     pass
 
 
-class NetworkManagerWifi(AbstractWifiManager):
+class NetworkManagerWifi(AbstractWifiManager):  # pylint: disable=too-many-instance-attributes
     """NetworkManager implementation of the WiFi manager interface.
 
     This class provides WiFi management functionality using NetworkManager and supports
