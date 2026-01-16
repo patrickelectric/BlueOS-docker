@@ -291,21 +291,43 @@ async def initialize_wpa_supplicant_managers(args: argparse.Namespace) -> bool:
 
 
 async def initialize_network_manager(args: argparse.Namespace) -> bool:
-    """Initialize NetworkManager-based wifi manager."""
+    """Initialize NetworkManager-based wifi manager for all available WiFi interfaces."""
     global wifi_manager  # pylint: disable=global-statement
 
-    manager = NetworkManagerWifi()
-    manager.configure(args)
-
-    if not await manager.can_work():
+    # First check if NetworkManager is available
+    test_manager = NetworkManagerWifi()
+    test_manager.configure(args)
+    if not await test_manager.can_work():
         return False
 
-    await manager.start()
-    interface_name = manager.interface_name
-    wifi_managers[interface_name] = manager
-    wifi_manager = manager
-    logger.info(f"Initialized NetworkManagerWifi for interface: {interface_name}")
-    return True
+    # Get all WiFi interfaces
+    available_interfaces = await NetworkManagerWifi.get_all_wifi_interfaces()
+    if not available_interfaces:
+        logger.warning("No WiFi interfaces found via NetworkManager")
+        return False
+
+    logger.info(f"Found WiFi interfaces: {available_interfaces}")
+
+    for iface_name in available_interfaces:
+        try:
+            manager = NetworkManagerWifi(target_interface=iface_name)
+            manager.configure(args)
+            await manager.start()
+
+            if manager._device_path is None:
+                logger.warning(f"Could not initialize manager for {iface_name}")
+                continue
+
+            wifi_managers[iface_name] = manager
+            logger.info(f"Initialized NetworkManagerWifi for interface: {iface_name}")
+
+            # Set first one as primary manager for backwards compatibility
+            if wifi_manager is None:
+                wifi_manager = manager
+        except Exception as error:
+            logger.warning(f"Could not initialize NetworkManagerWifi for {iface_name}: {error}")
+
+    return len(wifi_managers) > 0
 
 
 async def main() -> None:

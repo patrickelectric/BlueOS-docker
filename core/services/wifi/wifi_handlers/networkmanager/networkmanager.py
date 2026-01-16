@@ -39,19 +39,26 @@ class NetworkManagerWifi(AbstractWifiManager):
     both client and access point (hotspot) modes.
     """
 
-    def __init__(self) -> None:
-        """Initialize NetworkManager WiFi handler."""
+    def __init__(self, target_interface: Optional[str] = None) -> None:
+        """Initialize NetworkManager WiFi handler.
+
+        Args:
+            target_interface: Specific interface name to manage (e.g., 'wlan0', 'wlan1').
+                              If None, will use the first WiFi device found.
+        """
         super().__init__()
         self._bus = sdbus.sd_bus_open_system()
         self._nm: Optional[NetworkManager] = None
         self._nm_settings: Optional[NetworkManagerSettings] = None
         self._device_path: Optional[str] = None
+        self._target_interface: Optional[str] = target_interface
+        self._interface_name: str = target_interface or "wlan0"
         self._create_ap_process: Optional[subprocess.Popen[str]] = None
         self._ap_interface = "uap0"
         self._tasks: List[asyncio.Task[Any]] = []
         self._nm = NetworkManager(self._bus)
         self._nm_settings = NetworkManagerSettings(self._bus)
-        logger.info("NetworkManagerWifi initialized")
+        logger.info(f"NetworkManagerWifi initialized for interface: {target_interface or 'auto'}")
 
     async def _create_virtual_interface(self) -> bool:
         """Create virtual AP interface using iw"""
@@ -113,8 +120,24 @@ class NetworkManagerWifi(AbstractWifiManager):
         for device_path in devices:
             device = NetworkDeviceWireless(device_path, self._bus)
             if await device.device_type == DeviceType.WIFI:
-                self._device_path = device_path
-                break
+                iface_name = await device.interface
+                # If target interface specified, only use that one
+                if self._target_interface is not None:
+                    if iface_name == self._target_interface:
+                        self._device_path = device_path
+                        self._interface_name = iface_name
+                        break
+                else:
+                    # Use first WiFi device found
+                    self._device_path = device_path
+                    self._interface_name = iface_name
+                    break
+
+        if self._device_path is None:
+            logger.warning(f"No WiFi device found for interface: {self._target_interface or 'any'}")
+            return
+
+        logger.info(f"Using WiFi device: {self._interface_name} ({self._device_path})")
 
         # Create virtual AP interface if needed
         await self._create_virtual_interface()
@@ -584,7 +607,28 @@ class NetworkManagerWifi(AbstractWifiManager):
         logger.info("Smart hotspot enabled")
 
     async def get_current_network(self) -> Optional[SavedWifiNetwork]:
-        raise NotImplementedError
+        if not self._device_path:
+            return None
+
+        try:
+            device = NetworkDeviceWireless(self._device_path, self._bus)
+            state = await device.state
+
+            if state != DeviceState.ACTIVATED:
+                return None
+
+            ap = AccessPoint(await device.active_access_point, self._bus)
+            ssid = (await ap.ssid).decode("utf-8")
+
+            saved_networks = await self.get_saved_wifi_network()
+            for network in saved_networks:
+                if network.ssid == ssid:
+                    return network
+
+            return SavedWifiNetwork(networkid=0, ssid=ssid, bssid=await ap.hw_address)
+        except Exception as e:
+            logger.error(f"Error getting current network: {e}")
+            return None
 
     def is_smart_hotspot_enabled(self) -> bool:
         return self._settings_manager.settings.smart_hotspot_enabled is True
@@ -619,11 +663,27 @@ class NetworkManagerWifi(AbstractWifiManager):
     @property
     def interface_name(self) -> str:
         """Get the current interface name."""
-        if self._device_path is None:
-            return "wlan0"
-        # Extract interface name from device path asynchronously is complex,
-        # so we return a default for now
-        return "wlan0"
+        return self._interface_name
+
+    @staticmethod
+    async def get_all_wifi_interfaces() -> List[str]:
+        """Get list of all WiFi interface names from NetworkManager."""
+        interfaces: List[str] = []
+        try:
+            bus = sdbus.sd_bus_open_system()
+            nm = NetworkManager(bus)
+            devices = await nm.get_devices()
+            for device_path in devices:
+                device = NetworkDeviceWireless(device_path, bus)
+                if await device.device_type == DeviceType.WIFI:
+                    iface_name = await device.interface
+                    # Exclude virtual AP interfaces
+                    if not iface_name.startswith("uap"):
+                        interfaces.append(iface_name)
+            bus.close()
+        except Exception as e:
+            logger.warning(f"Could not enumerate WiFi interfaces: {e}")
+        return sorted(interfaces)
 
     def get_available_interfaces(self) -> List[str]:
         """Get list of available WLAN interfaces, excluding virtual AP interfaces."""
