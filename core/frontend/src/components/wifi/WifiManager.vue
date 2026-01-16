@@ -8,18 +8,7 @@
       v-if="showTopBar"
       elevate-on-scroll
     >
-      <v-toolbar-title>Wifi</v-toolbar-title>
-      <v-select
-        v-if="available_interfaces.length > 1"
-        v-model="selected_interface"
-        :items="available_interfaces"
-        item-text="name"
-        item-value="name"
-        dense
-        hide-details
-        class="ml-4 interface-selector"
-        style="max-width: 120px;"
-      />
+      <v-toolbar-title>Wifi{{ active_interface ? ` (${active_interface})` : '' }}</v-toolbar-title>
       <v-spacer />
       <v-btn
         v-tooltip="'Toggle hotspot'"
@@ -159,7 +148,7 @@ import { generateWifiQRCode } from 'wifi-qr-code-generator'
 import Notifier from '@/libs/notifier'
 import wifi from '@/store/wifi'
 import { wifi_service } from '@/types/frontend_services'
-import { Network, WifiStatus, WlanInterface } from '@/types/wifi'
+import { Network, WifiStatus } from '@/types/wifi'
 import back_axios from '@/utils/api'
 
 import SpinningLogo from '../common/SpinningLogo.vue'
@@ -272,17 +261,6 @@ export default Vue.extend({
         return false
       }
       return this.connectable_networks.length > 12
-    },
-    available_interfaces(): WlanInterface[] {
-      return wifi.available_interfaces
-    },
-    selected_interface: {
-      get(): string | null {
-        return wifi.current_interface
-      },
-      set(value: string) {
-        wifi.setCurrentInterface(value)
-      },
     },
   },
   watch: {
