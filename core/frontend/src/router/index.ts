@@ -1,10 +1,10 @@
-import { defineAsyncComponent } from 'vue'
-import Vue from 'vue'
+import Vue, { defineAsyncComponent } from 'vue'
 import VueRouter, { RouteConfig } from 'vue-router'
 
 import ExtensionView from '../views/ExtensionView.vue'
 import Main from '../views/MainView.vue'
 import PageNotFound from '../views/PageNotFound.vue'
+
 Vue.use(VueRouter)
 
 const routes: Array<RouteConfig> = [
@@ -29,9 +29,13 @@ const routes: Array<RouteConfig> = [
     component: defineAsyncComponent(() => import('../views/Pings.vue')),
   },
   {
+    path: '/vehicle/missions',
+    name: 'Missions',
+    component: defineAsyncComponent(() => import('../views/MissionsView.vue')),
+  },
+  {
     path: '/vehicle/logs',
-    name: 'Log Browser',
-    component: defineAsyncComponent(() => import('../views/LogView.vue')),
+    redirect: '/vehicle/missions',
   },
   {
     path: '/vehicle/endpoints',
@@ -65,8 +69,7 @@ const routes: Array<RouteConfig> = [
   },
   {
     path: '/tools/records',
-    name: 'Records',
-    component: defineAsyncComponent(() => import('../views/RecordsView.vue')),
+    redirect: '/vehicle/missions',
   },
   {
     path: '/tools/bridges',
