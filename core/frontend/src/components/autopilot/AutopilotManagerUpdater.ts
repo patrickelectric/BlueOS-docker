@@ -114,6 +114,34 @@ export async function fetchFirmwareVehicleType(): Promise<void> {
   }
 }
 
+export async function fetchExtraArguments(): Promise<void> {
+  try {
+    const response = await back_axios({
+      method: 'get',
+      url: `${autopilot.API_URL}/extra_arguments`,
+      timeout: 10000,
+    })
+    autopilot.setExtraArguments(response.data)
+  } catch (error) {
+    autopilot.setExtraArguments({})
+    notifier.pushBackError('AUTOPILOT_EXTRA_ARGS_FETCH_FAIL', error)
+  }
+}
+
+export async function fetchProcessStatus(): Promise<void> {
+  try {
+    const response = await back_axios({
+      method: 'get',
+      url: `${autopilot.API_URL}/process_status`,
+      timeout: 10000,
+    })
+    autopilot.setProcessStatus(response.data)
+  } catch (error) {
+    autopilot.setProcessStatus(null)
+    notifier.pushBackError('AUTOPILOT_PROCESS_STATUS_FETCH_FAIL', error)
+  }
+}
+
 export async function availableFirmwares(vehicleType: Vehicle): Promise<Firmware[]> {
   return back_axios({
     method: 'get',

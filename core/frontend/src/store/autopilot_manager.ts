@@ -5,8 +5,9 @@ import {
 import store from '@/store'
 import {
   AutopilotEndpoint, FirmwareInfo, FirmwareVehicleType,
-  FlightController, SerialEndpoint,
+  FlightController, ProcessStatus, SerialEndpoint,
 } from '@/types/autopilot'
+import { Dictionary } from '@/types/common'
 
 @Module({
   dynamic: true,
@@ -36,6 +37,10 @@ class AutopilotManagerStore extends VuexModule {
   restarting = false
 
   autopilot_serials: SerialEndpoint[] = []
+
+  extra_arguments: Dictionary<string> = {}
+
+  process_status: ProcessStatus | null = null
 
   @Mutation
   setAutopilotSerialConfigurations(serials: SerialEndpoint[]): void {
@@ -82,6 +87,16 @@ class AutopilotManagerStore extends VuexModule {
   setAvailableBoards(boards: FlightController[]): void {
     this.available_boards = boards
     this.updating_boards = false
+  }
+
+  @Mutation
+  setExtraArguments(arguments_: Dictionary<string>): void {
+    this.extra_arguments = arguments_
+  }
+
+  @Mutation
+  setProcessStatus(process_status: ProcessStatus | null): void {
+    this.process_status = process_status
   }
 }
 

@@ -74,6 +74,16 @@
             </v-expansion-panel-content>
           </v-expansion-panel>
         </v-expansion-panels>
+        <v-expansion-panels v-if="settings.is_pirate_mode && isLinuxFlightController">
+          <v-expansion-panel>
+            <v-expansion-panel-header>
+              Extra Arguments
+            </v-expansion-panel-header>
+            <v-expansion-panel-content>
+              <autopilot-extra-arguments />
+            </v-expansion-panel-content>
+          </v-expansion-panel>
+        </v-expansion-panels>
       </v-card-text>
       <v-card-actions class="d-flex justify-end align-center flex-wrap">
         <v-spacer />
@@ -131,6 +141,7 @@ import Vue from 'vue'
 import ArduPilotBanner from '@/assets/img/banners/ArduPilot.svg'
 import OpenPilotBanner from '@/assets/img/banners/OpenPilot.svg'
 import PX4Banner from '@/assets/img/banners/PX4.svg'
+import AutopilotExtraArguments from '@/components/autopilot/AutopilotExtraArguments.vue'
 import * as AutopilotManager from '@/components/autopilot/AutopilotManagerUpdater'
 import {
   fetchAvailableBoards, fetchCurrentBoard, fetchFirmwareInfo, fetchFirmwareVehicleType, fetchVehicleType,
@@ -156,6 +167,7 @@ const notifier = new Notifier(autopilot_service)
 export default Vue.extend({
   name: 'Autopilot',
   components: {
+    AutopilotExtraArguments,
     BoardChangeDialog,
     FirmwareManager,
     AutopilotSerialConfiguration,

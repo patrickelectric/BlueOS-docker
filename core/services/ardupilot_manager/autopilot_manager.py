@@ -4,7 +4,7 @@ import pathlib
 import subprocess
 import time
 from copy import deepcopy
-from typing import Any, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set
 
 import psutil
 from commonwealth.mavlink_comm.VehicleManager import VehicleManager
@@ -30,6 +30,7 @@ from typedefs import (
     Parameters,
     Platform,
     PlatformType,
+    ProcessStatus,
     Serial,
     SITLFrame,
     Vehicle,
@@ -151,6 +152,7 @@ class AutoPilotManager(metaclass=Singleton):
         self.vehicle_manager = VehicleManager()
 
         self.should_be_running = False
+        self._last_exit_code: Optional[int] = None
         self.remove_old_logs()
         self.current_sitl_frame = self.load_sitl_frame()
 
@@ -189,6 +191,11 @@ class AutoPilotManager(metaclass=Singleton):
     async def auto_restart_ardupilot(self) -> None:
         """Auto-restart Ardupilot when it's not running but was supposed to."""
         while True:
+            if self.ardupilot_subprocess is not None and self.ardupilot_subprocess.poll() is not None:
+                self._last_exit_code = self.ardupilot_subprocess.returncode
+                if self._last_exit_code != 0:
+                    logger.warning(f"ArduPilot process exited with code {self._last_exit_code}")
+
             needs_restart = self.should_be_running and not self.is_running()
             if needs_restart:
                 logger.debug("Restarting ardupilot...")
@@ -315,6 +322,7 @@ class AutoPilotManager(metaclass=Singleton):
         #
         # The first column comes from https://ardupilot.org/dev/docs/sitl-serial-mapping.html
 
+        extra_args = self.get_extra_arguments_cmdline()
         command_line = (
             f"{firmware_path}"
             f" -A udp:{master_endpoint.place}:{master_endpoint.argument}"
@@ -323,11 +331,14 @@ class AutoPilotManager(metaclass=Singleton):
             f" {self.get_serial_cmdline()}"
             f" {self.get_default_params_cmdline(board.platform)}"
         )
+        if extra_args:
+            command_line += f" {extra_args}"
 
         if self.firmware_has_debug_symbols(firmware_path):
             logger.info("Debug symbols found, launching with gdb server...")
             command_line = f"gdbserver 0.0.0.0:5555 {command_line}"
 
+        self._last_exit_code = None
         logger.info(f"Using command line: '{command_line}'")
         self.ardupilot_subprocess = subprocess.Popen(
             command_line,
@@ -389,6 +400,25 @@ class AutoPilotManager(metaclass=Singleton):
     def get_available_routers(self) -> List[str]:
         return [router.name() for router in self.mavlink_manager.available_interfaces()]
 
+    def get_extra_arguments(self) -> Dict[str, str]:
+        return self.configuration.get("extra_arguments", {})
+
+    def set_extra_arguments(self, arguments: Dict[str, str]) -> None:
+        self.configuration["extra_arguments"] = arguments
+        self.settings.save(self.configuration)
+
+    def get_extra_arguments_cmdline(self) -> str:
+        parts = []
+        for name, value in self.get_extra_arguments().items():
+            if value:
+                parts.append(f"{name} {value}")
+            else:
+                parts.append(name)
+        return " ".join(parts)
+
+    def get_process_status(self) -> ProcessStatus:
+        return ProcessStatus(running=self.is_running(), exit_code=self._last_exit_code)
+
     async def start_manual_board(self, board: FlightController) -> None:
         self._current_board = board
         self.master_endpoint = self.get_manual_board_master_endpoint()
@@ -417,18 +447,23 @@ class AutoPilotManager(metaclass=Singleton):
             argument=5760,
             protected=True,
         )
+
+        extra_args = self.get_extra_arguments_cmdline()
+        command_line = (
+            f"{firmware_path}"
+            f" --model {self.current_sitl_frame.value}"
+            f" --base-port {master_endpoint.argument}"
+            f" --home -27.563,-48.459,0.0,270.0"
+        )
+        if extra_args:
+            command_line += f" {extra_args}"
+
         # pylint: disable=consider-using-with
+        self._last_exit_code = None
+        logger.info(f"Using command line: '{command_line}'")
         self.ardupilot_subprocess = subprocess.Popen(
-            [
-                firmware_path,
-                "--model",
-                self.current_sitl_frame.value,
-                "--base-port",
-                str(master_endpoint.argument),
-                "--home",
-                "-27.563,-48.459,0.0,270.0",
-            ],
-            shell=False,
+            command_line,
+            shell=True,
             encoding="utf-8",
             errors="ignore",
             cwd=self.settings.firmware_folder,

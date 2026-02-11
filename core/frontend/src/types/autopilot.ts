@@ -98,3 +98,8 @@ export interface SerialEndpoint {
   port: string
   endpoint: string
 }
+
+export interface ProcessStatus {
+  running: boolean
+  exit_code: number | null
+}

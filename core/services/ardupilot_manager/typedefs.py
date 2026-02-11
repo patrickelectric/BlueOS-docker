@@ -209,3 +209,8 @@ class Serial(BaseModel):
 
     def __hash__(self) -> int:  # make hashable BaseModel subclass
         return hash(self.port + self.endpoint)
+
+
+class ProcessStatus(BaseModel):
+    running: bool
+    exit_code: Optional[int] = None

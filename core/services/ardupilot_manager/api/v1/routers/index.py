@@ -3,7 +3,7 @@ import os
 import shutil
 from functools import wraps
 from pathlib import Path
-from typing import Any, Callable, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from autopilot_manager import AutoPilotManager
 from commonwealth.mavlink_comm.exceptions import (
@@ -24,6 +24,7 @@ from typedefs import (
     FlightController,
     FlightControllerFlags,
     Parameters,
+    ProcessStatus,
     Serial,
     SITLFrame,
     Vehicle,
@@ -134,6 +135,24 @@ async def get_vehicle_type() -> Any:
 @index_to_http_exception
 async def set_sitl_frame(frame: SITLFrame) -> Any:
     return autopilot.set_sitl_frame(frame)
+
+
+@index_router_v1.get("/extra_arguments", response_model=Dict[str, str], summary="Get extra ArduPilot arguments.")
+@index_to_http_exception
+def get_extra_arguments() -> Any:
+    return autopilot.get_extra_arguments()
+
+
+@index_router_v1.put("/extra_arguments", status_code=status.HTTP_200_OK, summary="Set extra ArduPilot arguments.")
+@index_to_http_exception
+def set_extra_arguments(arguments: Dict[str, str] = Body(...)) -> Any:
+    autopilot.set_extra_arguments(arguments)
+
+
+@index_router_v1.get("/process_status", response_model=ProcessStatus, summary="Get ArduPilot process status.")
+@index_to_http_exception
+def get_process_status() -> Any:
+    return autopilot.get_process_status()
 
 
 @index_router_v1.get("/firmware_vehicle_type", response_model=str, summary="Get firmware vehicle type.")
