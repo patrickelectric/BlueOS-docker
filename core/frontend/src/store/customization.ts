@@ -12,6 +12,17 @@ import back_axios, { isBackendOffline } from '@/utils/api'
 const API_URL = '/customization/v1.0'
 const THEME_CSS_URL = '/userdata/styles/theme_style.css'
 
+// Treat these as "service unreachable" — likely the customization service isn't
+// running yet (older BlueOS image, still booting, restarting, etc.). The UI
+// should silently fall back to "no overrides" instead of showing an error.
+const UNREACHABLE_STATUSES = new Set([404, 502, 503, 504])
+
+function isServiceUnreachable(error: any): boolean {
+  if (isBackendOffline(error)) return true
+  const status = error?.response?.status
+  return typeof status === 'number' && UNREACHABLE_STATUSES.has(status)
+}
+
 function reloadThemeStylesheet(): void {
   const existing = document.querySelector<HTMLLinkElement>('link[href^="/userdata/styles/theme_style.css"]')
   const buster = `${THEME_CSS_URL}?t=${Date.now()}`
@@ -82,7 +93,10 @@ class CustomizationStore extends VuexModule {
         this.setTheme(response.data as ThemeStatus)
       })
       .catch((error) => {
-        if (isBackendOffline(error)) return
+        if (isServiceUnreachable(error)) {
+          this.setTheme({ active: false })
+          return
+        }
         this.setError(`Failed to fetch theme: ${error.message}`)
       })
       .finally(() => this.setLoadingTheme(false))
@@ -103,7 +117,10 @@ class CustomizationStore extends VuexModule {
         reloadThemeStylesheet()
       })
       .catch((error) => {
-        if (isBackendOffline(error)) return
+        if (isServiceUnreachable(error)) {
+          this.setError('Customization service is unavailable. Please update BlueOS or wait for the service to start.')
+          return
+        }
         const detail = error?.response?.data?.detail ?? error.message
         this.setError(`Failed to apply theme: ${detail}`)
       })
@@ -124,7 +141,10 @@ class CustomizationStore extends VuexModule {
         reloadThemeStylesheet()
       })
       .catch((error) => {
-        if (isBackendOffline(error)) return
+        if (isServiceUnreachable(error)) {
+          this.setTheme({ active: false })
+          return
+        }
         this.setError(`Failed to reset theme: ${error.message}`)
       })
       .finally(() => this.setLoadingTheme(false))
@@ -141,7 +161,6 @@ class CustomizationStore extends VuexModule {
       })
       return response.data as ThemePalette
     } catch (error) {
-      if (isBackendOffline(error)) return null
       return null
     }
   }
@@ -160,7 +179,10 @@ class CustomizationStore extends VuexModule {
         this.setModels(data.models ?? [])
       })
       .catch((error) => {
-        if (isBackendOffline(error)) return
+        if (isServiceUnreachable(error)) {
+          this.setModels([])
+          return
+        }
         this.setError(`Failed to fetch models: ${error.message}`)
       })
       .finally(() => this.setLoadingModels(false))
@@ -202,7 +224,10 @@ class CustomizationStore extends VuexModule {
     })
       .then(() => this.fetchModels())
       .catch((error) => {
-        if (isBackendOffline(error)) return
+        if (isServiceUnreachable(error)) {
+          this.setError('Customization service is unavailable.')
+          return
+        }
         const detail = error?.response?.data?.detail ?? error.message
         this.setError(`Failed to delete model: ${detail}`)
       })
