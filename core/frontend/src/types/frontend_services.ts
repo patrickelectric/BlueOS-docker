@@ -77,6 +77,13 @@ export const commander_service: Service = {
   version: '0.1.0',
 }
 
+export const customization_service: Service = {
+  name: 'Customization',
+  description: 'Manage BlueOS appearance overrides (theme color, custom 3D models).',
+  company: 'Blue Robotics',
+  version: '0.1.0',
+}
+
 export const nmea_injector_service: Service = {
   name: 'NMEA Injector',
   description: 'Allows management of sockets for NMEA data injectior.',

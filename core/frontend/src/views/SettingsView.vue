@@ -93,6 +93,7 @@
                   </v-card>
                 </v-col>
               </v-row>
+              <appearance-customization class="mt-4" />
             </v-card-text>
           </v-card>
 
@@ -492,6 +493,7 @@ import Vue from 'vue'
 
 import SpinningLogo from '@/components/common/SpinningLogo.vue'
 import WarningDialog from '@/components/common/WarningDialog.vue'
+import AppearanceCustomization from '@/components/settings/AppearanceCustomization.vue'
 import filebrowser from '@/libs/filebrowser'
 import Notifier from '@/libs/notifier'
 import settings from '@/libs/settings'
@@ -511,6 +513,7 @@ export default Vue.extend({
   name: 'SettingsView',
 
   components: {
+    AppearanceCustomization,
     SpinningLogo,
     WarningDialog,
   },
