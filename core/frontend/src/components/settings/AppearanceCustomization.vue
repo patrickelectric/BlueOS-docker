@@ -5,6 +5,8 @@
       role="button"
       tabindex="0"
       @click="expanded = !expanded"
+      @keydown.enter="expanded = !expanded"
+      @keydown.space.prevent="expanded = !expanded"
     >
       <v-avatar color="primary" size="32" class="mr-3">
         <v-icon color="white" size="18">
