@@ -246,7 +246,7 @@ export default Vue.extend({
     async createEndpoint(endpoint: AutopilotEndpoint): Promise<void> {
       await back_axios({
         method: 'post',
-        url: `${autopilot.API_URL}/endpoints`,
+        url: `${autopilot.API_URL}/endpoints/`,
         timeout: 10000,
         data: [endpoint],
       })
