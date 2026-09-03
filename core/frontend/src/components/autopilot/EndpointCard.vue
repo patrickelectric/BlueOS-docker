@@ -179,7 +179,7 @@ export default Vue.extend({
       autopilot.setUpdatingEndpoints(true)
       await back_axios({
         method: 'delete',
-        url: `${autopilot.API_URL}/endpoints`,
+        url: `${autopilot.API_URL}/endpoints/`,
         timeout: 10000,
         data: [this.endpoint],
       })
@@ -200,7 +200,7 @@ export default Vue.extend({
       autopilot.setUpdatingEndpoints(true)
       await back_axios({
         method: 'put',
-        url: `${autopilot.API_URL}/endpoints`,
+        url: `${autopilot.API_URL}/endpoints/`,
         timeout: 10000,
         data: [endpoint],
       })
