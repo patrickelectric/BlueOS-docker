@@ -7,13 +7,6 @@ from concurrent.futures import CancelledError
 from typing import Any, List, MutableMapping, Optional
 
 import sdbus
-from band import (
-    COUNTRY_CODE,
-    FALLBACK_AP_FREQUENCY,
-    channel_from_frequency,
-    is_5ghz,
-    radio_supports_5ghz,
-)
 from commonwealth.utils.general import device_id
 from loguru import logger
 from sdbus_async.networkmanager import (
@@ -28,6 +21,13 @@ from sdbus_async.networkmanager import (
 )
 from sdbus_async.networkmanager.enums import AccessPointCapabilities, WpaSecurityFlags
 
+from band import (
+    COUNTRY_CODE,
+    FALLBACK_AP_FREQUENCY,
+    channel_from_frequency,
+    is_5ghz,
+    radio_supports_5ghz,
+)
 from typedefs import SavedWifiNetwork, ScannedWifiNetwork, WifiCredentials, WifiStatus
 from wifi_handlers.AbstractWifiHandler import AbstractWifiManager
 
@@ -170,6 +170,7 @@ class NetworkManagerWifi(AbstractWifiManager):
                 logger.info("Requested WiFi scan")
             await asyncio.sleep(10)
 
+    # pylint: disable=too-many-branches
     async def get_wifi_available(self) -> List[ScannedWifiNetwork]:
         if not self._device_path or not self._nm:
             return []

@@ -10,6 +10,11 @@ from ipaddress import IPv4Address
 from typing import Any, Callable, List, Optional
 
 import psutil
+from commonwealth.utils.DHCPServerManager import Dnsmasq as DHCPServerManager
+from commonwealth.utils.general import HostOs, device_id, get_host_os
+from loguru import logger
+from pyroute2 import IW, IPRoute
+
 from band import (
     COUNTRY_CODE,
     FALLBACK_AP_FREQUENCY,
@@ -17,11 +22,6 @@ from band import (
     is_5ghz,
     radio_supports_5ghz,
 )
-from commonwealth.utils.DHCPServerManager import Dnsmasq as DHCPServerManager
-from commonwealth.utils.general import HostOs, device_id, get_host_os
-from loguru import logger
-from pyroute2 import IW, IPRoute
-
 from typedefs import WifiCredentials
 
 
