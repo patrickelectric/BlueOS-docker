@@ -12,6 +12,7 @@ from commonwealth.utils.general import HostOs, get_host_os
 from fastapi import status
 from loguru import logger
 
+from band import COUNTRY_CODE, FIVE_GHZ_FREQUENCIES, is_5ghz
 from exceptions import FetchError, ParseError
 from typedefs import (
     ConnectionStatus,
@@ -32,6 +33,19 @@ class WifiManager(AbstractWifiManager):
 
     async def can_work(self) -> bool:
         return bool(get_host_os() == HostOs.Bullseye)
+
+    async def restrict_station_to_5ghz(self) -> None:
+        """Bound the station to 5GHz. freq_list limits scanning, and wpa_supplicant only associates
+        with what it scanned, so saved 2.4GHz networks are never reconnected to either."""
+        frequencies = " ".join(str(frequency) for frequency in FIVE_GHZ_FREQUENCIES)
+        for variable, value in (("country", COUNTRY_CODE), ("freq_list", frequencies)):
+            try:
+                reply = await self.wpa.send_command_set(variable, value)
+            except Exception:
+                logger.exception(f"Could not set '{variable}'. Station may reach 2.4GHz networks.")
+                continue
+            if b"OK" not in reply:
+                logger.error(f"WPA Supplicant rejected '{variable}': {reply!r}. Station may reach 2.4GHz networks.")
 
     async def try_connect_to_network(self, credentials: WifiCredentials, hidden: bool = False) -> Any:
         logger.info(f"Trying to connect to '{credentials.ssid}'.")
@@ -100,6 +114,8 @@ class WifiManager(AbstractWifiManager):
         self._ignored_reconnection_networks: List[str] = []
         self.connection_status = ConnectionStatus.UNKNOWN
         self._time_last_scan = 0.0
+
+        await self.restrict_station_to_5ghz()
 
         # Perform first scan so the wlan interface gets configured (for just-flashed-images)
         await self.get_wifi_available()
@@ -204,7 +220,10 @@ class WifiManager(AbstractWifiManager):
                 await self._scan_task
                 data = await self.wpa.send_command_scan_results()
                 networks_list = WifiManager.__dict_from_table(data)
-                self._updated_scan_results = [ScannedWifiNetwork(**network) for network in networks_list]
+                scanned = [ScannedWifiNetwork(**network) for network in networks_list]
+                # freq_list already bounds new scans, but the BSS table can still hold 2.4GHz
+                # entries cached from before the restriction was applied
+                self._updated_scan_results = [network for network in scanned if is_5ghz(network.frequency)]
                 self._time_last_scan = time.time()
             except Exception as error:
                 if self._scan_task is not None:
@@ -258,7 +277,7 @@ class WifiManager(AbstractWifiManager):
             if hidden:
                 await self.wpa.send_command_set_network(network_number, "scan_ssid", "1")
             await self.wpa.send_command_save_config()
-            await self.wpa.send_command_reconfigure()
+            await self.reconfigure()
             return int(network_number)
         except Exception as error:
             raise ConnectionError("Failed to set new network.") from error
@@ -267,7 +286,7 @@ class WifiManager(AbstractWifiManager):
         try:
             await self.wpa.send_command_remove_network(network_id)
             await self.wpa.send_command_save_config()
-            await self.wpa.send_command_reconfigure()
+            await self.reconfigure()
         except Exception as error:
             raise ConnectionError("Failed to remove existing network.") from error
 
@@ -301,7 +320,7 @@ class WifiManager(AbstractWifiManager):
                 await self.disable_hotspot(save_settings=False)
             await self.wpa.send_command_select_network(network_id)
             await self.wpa.send_command_save_config()
-            await self.wpa.send_command_reconfigure()
+            await self.reconfigure()
             await self.wpa.send_command_reconnect()
             start_time = time.time()
             while True:
@@ -347,6 +366,8 @@ class WifiManager(AbstractWifiManager):
             await self.wpa.send_command_reconfigure()
         except Exception as error:
             raise RuntimeError("Failed to reconfigure wifi manager.") from error
+        # Re-reading the conf file drops the globals we set over the socket
+        await self.restrict_station_to_5ghz()
 
     async def disconnect(self) -> None:
         """Reconfigure wpa_supplicant
@@ -376,7 +397,7 @@ class WifiManager(AbstractWifiManager):
                     continue
                 await self.wpa.send_command_enable_network(network.networkid)
             await self.wpa.send_command_save_config()
-            await self.wpa.send_command_reconfigure()
+            await self.reconfigure()
         except Exception as error:
             raise RuntimeError("Failed to enable saved networks.") from error
 

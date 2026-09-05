@@ -6,7 +6,6 @@ import shutil
 import subprocess
 import tempfile
 import time
-from enum import Enum
 from ipaddress import IPv4Address
 from typing import Any, Callable, List, Optional
 
@@ -16,18 +15,14 @@ from commonwealth.utils.general import HostOs, device_id, get_host_os
 from loguru import logger
 from pyroute2 import IW, IPRoute
 
+from band import (
+    COUNTRY_CODE,
+    FALLBACK_AP_FREQUENCY,
+    channel_from_frequency,
+    is_5ghz,
+    radio_supports_5ghz,
+)
 from typedefs import WifiCredentials
-
-
-class HostapdFrequency(str, Enum):
-    """Valid hostapd frequency modes."""
-
-    HW_2_4 = "g"  # Hostapd id for 2.4 GHz mode
-    HW_5_0 = "a"  # Hostapd id for 5.0 GHz mode
-
-    @staticmethod
-    def mode_from_channel_frequency(frequency: int) -> "HostapdFrequency":
-        return HostapdFrequency.HW_2_4 if int(frequency / 100) == 24 else HostapdFrequency.HW_5_0
 
 
 class HotspotManager:
@@ -83,7 +78,7 @@ class HotspotManager:
 
     def check_hotspot_support(self) -> bool:
         # Support for Bookworm should arrive with NetworkManager support
-        return bool(get_host_os() == HostOs.Bullseye)
+        return bool(get_host_os() == HostOs.Bullseye) and radio_supports_5ghz()
 
     def set_credentials(self, credentials: WifiCredentials) -> None:
         logger.debug(f"Changing hotspot ssid to '{credentials.ssid}' and passphrase to '{credentials.password}'.")
@@ -124,7 +119,15 @@ class HotspotManager:
                 raise RuntimeError("Could not find base interface channel. Timeout exceeded.")
 
     def desired_channel_frequency(self) -> int:
-        return self.base_interface_channel_frequency()
+        # uap0 shares wlan0's radio, so the access point has to beacon on whatever channel the station
+        # already holds. The station is restricted to 5 GHz, but it can be unassociated or still settling,
+        # in which case we pick a channel ourselves.
+        try:
+            frequency = self.base_interface_channel_frequency()
+        except RuntimeError as error:
+            logger.debug(f"Could not read base interface channel, falling back to default: {error}")
+            return FALLBACK_AP_FREQUENCY
+        return frequency if is_5ghz(frequency) else FALLBACK_AP_FREQUENCY
 
     def _create_virtual_interface(self) -> None:
         logger.debug("Deleting virtual access point interface (if exists).")
@@ -212,20 +215,25 @@ class HotspotManager:
         return config_dir.joinpath("hostapd.conf")
 
     def hostapd_config(self) -> str:
-        desired_channel_frequency = self.desired_channel_frequency()
-        desired_channel_number = HotspotManager.channel_number(desired_channel_frequency)
-
         return (
             "# WiFi interface to be used (in this case a virtual one)\n"
             f"interface={self._ap_interface_name}\n"
             "# Channel (frequency) of the access point\n"
-            f"channel={desired_channel_number}\n"
+            f"channel={channel_from_frequency(self.desired_channel_frequency())}\n"
             "# SSID broadcasted by the access point\n"
             f'ssid2="{self._ap_ssid}"\n'
             "# Passphrase for the access point\n"
             f"wpa_passphrase={self._ap_passphrase}\n"
-            "# Operation mode. Uses 'g' for 2.4GHz bands and 'a' for 5GHz.\n"
-            f"hw_mode={HostapdFrequency.mode_from_channel_frequency(desired_channel_frequency).value}\n"
+            "# Operation mode. 'a' is 5GHz, the only band we serve.\n"
+            "hw_mode=a\n"
+            "# Regulatory domain. Without it the world domain marks every 5GHz channel as no-IR\n"
+            "# and hostapd is not allowed to beacon at all.\n"
+            f"country_code={COUNTRY_CODE}\n"
+            "ieee80211d=1\n"
+            "# Without HT/VHT a 5GHz access point is limited to 802.11a rates (54 Mbps)\n"
+            "ieee80211n=1\n"
+            "ieee80211ac=1\n"
+            "ht_capab=[HT40+][SHORT-GI-20][SHORT-GI-40]\n"
             "# Accept all MAC addresses\n"
             "macaddr_acl=0\n"
             "# Use WPA authentication\n"
@@ -236,7 +244,8 @@ class HotspotManager:
             "wpa=2\n"
             "# Use a pre-shared key\n"
             "wpa_key_mgmt=WPA-PSK\n"
-            "wpa_pairwise=TKIP\n"
+            # wpa_pairwise is deliberately unset: offering TKIP as a pairwise cipher makes hostapd
+            # silently disable HT, which would cap the hotspot at 802.11a rates.
             "rsn_pairwise=CCMP\n"
         )
 
@@ -291,92 +300,3 @@ class HotspotManager:
             if time.time() - time_start > 5:
                 raise RuntimeError(timeout_message)
             time.sleep(0.1)
-
-    @staticmethod
-    def channel_number(frequency: int) -> int:
-        return {
-            2412: 1,
-            2417: 2,
-            2422: 3,
-            2427: 4,
-            2432: 5,
-            2437: 6,
-            2442: 7,
-            2447: 8,
-            2452: 9,
-            2457: 10,
-            2462: 11,
-            2467: 12,
-            2472: 13,
-            2484: 14,
-            5035: 7,
-            5040: 8,
-            5045: 9,
-            5055: 11,
-            5060: 12,
-            5080: 16,
-            5160: 32,
-            5170: 34,
-            5180: 36,
-            5190: 38,
-            5200: 40,
-            5210: 42,
-            5220: 44,
-            5230: 46,
-            5240: 48,
-            5250: 50,
-            5260: 52,
-            5270: 54,
-            5280: 56,
-            5290: 58,
-            5300: 60,
-            5310: 62,
-            5320: 64,
-            5340: 68,
-            5480: 96,
-            5500: 100,
-            5510: 102,
-            5520: 104,
-            5530: 106,
-            5540: 108,
-            5550: 110,
-            5560: 112,
-            5570: 114,
-            5580: 116,
-            5590: 118,
-            5600: 120,
-            5610: 122,
-            5620: 124,
-            5630: 126,
-            5640: 128,
-            5660: 132,
-            5670: 134,
-            5680: 136,
-            5690: 138,
-            5700: 140,
-            5710: 142,
-            5720: 144,
-            5745: 149,
-            5755: 151,
-            5765: 153,
-            5775: 155,
-            5785: 157,
-            5795: 159,
-            5805: 161,
-            5815: 163,
-            5825: 165,
-            5835: 167,
-            5845: 169,
-            5855: 171,
-            5865: 173,
-            5875: 175,
-            5885: 177,
-            5910: 182,
-            5915: 183,
-            5920: 184,
-            5935: 187,
-            5940: 188,
-            5945: 189,
-            5960: 192,
-            5980: 196,
-        }[frequency]

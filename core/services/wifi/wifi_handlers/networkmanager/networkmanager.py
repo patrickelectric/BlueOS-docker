@@ -21,6 +21,13 @@ from sdbus_async.networkmanager import (
 )
 from sdbus_async.networkmanager.enums import AccessPointCapabilities, WpaSecurityFlags
 
+from band import (
+    COUNTRY_CODE,
+    FALLBACK_AP_FREQUENCY,
+    channel_from_frequency,
+    is_5ghz,
+    radio_supports_5ghz,
+)
 from typedefs import SavedWifiNetwork, ScannedWifiNetwork, WifiCredentials, WifiStatus
 from wifi_handlers.AbstractWifiHandler import AbstractWifiManager
 
@@ -116,10 +123,43 @@ class NetworkManagerWifi(AbstractWifiManager):
                 self._device_path = device_path
                 break
 
+        await self._restrict_saved_connections_to_5ghz()
+
         # Create virtual AP interface if needed
         await self._create_virtual_interface()
         self._tasks.append(asyncio.get_event_loop().create_task(self._autoscan()))
         self._tasks.append(asyncio.get_event_loop().create_task(self.hotspot_watchdog()))
+
+    async def _restrict_saved_connections_to_5ghz(self) -> None:
+        """Profiles saved before this feature existed have no band lock and would happily
+        auto-connect on 2.4GHz, so they get migrated on startup."""
+        if not self._nm_settings:
+            return
+        for conn_path in await self._nm_settings.connections:
+            try:
+                settings = NetworkConnectionSettings(conn_path, self._bus)
+                profile = await settings.get_profile(fetch_secrets=False)
+                if not profile.wireless or profile.wireless.band == "a":
+                    continue
+                profile.wireless.band = "a"
+                await settings.update_profile(profile, save_to_disk=True)
+                logger.info(f"Locked saved connection {conn_path} to 5GHz")
+            except Exception as e:
+                logger.error(f"Could not lock connection {conn_path} to 5GHz: {e}")
+
+    async def _ap_channel(self) -> int:
+        """uap0 shares wlan0's radio, so the access point has to beacon on the channel the station
+        already holds. Only 5GHz is allowed, so anything else means we pick the channel ourselves."""
+        frequency = FALLBACK_AP_FREQUENCY
+        try:
+            device = NetworkDeviceWireless(self._device_path, self._bus)
+            if await device.state == DeviceState.ACTIVATED:
+                associated = await AccessPoint(await device.active_access_point, self._bus).frequency
+                if is_5ghz(associated):
+                    frequency = associated
+        except Exception as e:
+            logger.error(f"Could not read station frequency, using default AP channel: {e}")
+        return channel_from_frequency(frequency)
 
     async def _autoscan(self) -> None:
 
@@ -142,6 +182,8 @@ class NetworkManagerWifi(AbstractWifiManager):
             for ap_path in ap_paths:
                 ap = AccessPoint(ap_path, self._bus)
                 freq = await ap.frequency.get_async()
+                if not is_5ghz(freq):
+                    continue
                 ssid = (await ap.ssid.get_async()).decode("utf-8")
 
                 # Get raw flag values
@@ -230,6 +272,9 @@ class NetworkManagerWifi(AbstractWifiManager):
                 "ssid": ("ay", credentials.ssid.encode()),
                 "mode": ("s", "infrastructure"),
                 "hidden": ("b", hidden),
+                # Locks the profile to 5GHz: NetworkManager will not associate with the same
+                # network on 2.4GHz even when that is the only band it is broadcasting on.
+                "band": ("s", "a"),
             },
             "ipv6": {"method": ("s", "disabled")},
         }
@@ -306,6 +351,17 @@ class NetworkManagerWifi(AbstractWifiManager):
             "-g",
             "192.168.42.1",  # IPv4 Gateway for the Access Point
             "--redirect-to-localhost",  # Redirect all traffic to localhost, captive-portal style
+            # Without a regulatory domain the world domain marks every 5GHz channel as no-IR
+            # and create_ap dies on its own can_transmit_to_channel check.
+            "--country",
+            COUNTRY_CODE,
+            # Setting the band explicitly disables create_ap's own co-channel fallback, so we
+            # have to supply the station's channel ourselves.
+            "--freq-band",
+            "5",
+            "-c",
+            str(await self._ap_channel()),
+            "--ieee80211ac",  # Without HT/VHT a 5GHz access point is limited to 54 Mbps
             credentials.ssid,
             credentials.password,
         ]
@@ -413,7 +469,7 @@ class NetworkManagerWifi(AbstractWifiManager):
         return self._create_ap_process is not None and self._create_ap_process.poll() is None
 
     async def supports_hotspot(self) -> bool:
-        return True
+        return radio_supports_5ghz()
 
     async def status(self) -> WifiStatus:
         if not self._device_path:
