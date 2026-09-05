@@ -8,11 +8,11 @@ from http.client import HTTPException
 from ipaddress import IPv4Address
 from typing import Any, Dict, List, Optional
 
+from band import COUNTRY_CODE, FIVE_GHZ_FREQUENCIES, is_5ghz
 from commonwealth.utils.general import HostOs, get_host_os
 from fastapi import status
 from loguru import logger
 
-from band import COUNTRY_CODE, FIVE_GHZ_FREQUENCIES, is_5ghz
 from exceptions import FetchError, ParseError
 from typedefs import (
     ConnectionStatus,
