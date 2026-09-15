@@ -373,6 +373,10 @@ class VersionChooser:
                         "tag": tag,
                         "last_modified": datetime.fromtimestamp(image["Created"]).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
                         "sha": image["Id"],
+                        # ponytail: ParentId is local-only bookkeeping, it is dropped once the image is pushed and
+                        # pulled elsewhere and is empty on the containerd image store. Upgrade path is inspecting
+                        # every image and matching the longest RootFS.Layers prefix, at one request per image.
+                        "parent_sha": image["ParentId"] or None,
                     }
                 )
 
