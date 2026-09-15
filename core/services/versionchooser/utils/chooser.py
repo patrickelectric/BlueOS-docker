@@ -1,5 +1,6 @@
 import json
 import pathlib
+import re
 import sys
 from dataclasses import asdict
 from datetime import datetime
@@ -20,6 +21,11 @@ from utils.dockerhub import (
 )
 
 DOCKER_CONFIG_PATH = pathlib.Path(appdirs.user_config_dir("bootstrap"), "startup.json")
+
+# Commits are restricted to `<namespace>/blueos-core` names, since set_local_versions filters the list on that,
+# and to colon-free names, since the tags there are split on ":"
+COMMIT_REPOSITORY_PATTERN = re.compile(r"^[a-z0-9]+(?:[._-][a-z0-9]+)*(?:/[a-z0-9]+(?:[._-][a-z0-9]+)*)*/blueos-core$")
+COMMIT_TAG_PATTERN = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$")
 
 
 class VersionChooser:
@@ -320,6 +326,42 @@ class VersionChooser:
             except Exception as error:
                 logger.critical(f"Error: {type(error)}: {error}")
                 return JSONResponse(status_code=500, content={"error": f"Error: {type(error)}: {error}"})
+
+    async def commit_version(self, repository: str, tag: str) -> JSONResponse:
+        """Commits the running core container as a new image, layered on top of the image it runs from.
+
+        Only the container filesystem is captured: bind mounts, and therefore every BlueOS setting under
+        /root/.config, the extensions and the user data, are left out.
+
+        Args:
+            repository (str): the repository for the new image, such as joaozinho/blueos-core
+            tag (str): the desired tag
+
+        Returns:
+            Response:
+                200 - OK
+                422 - Invalid repository/tag
+                500 - Docker refused to commit the container
+        """
+        if not COMMIT_REPOSITORY_PATTERN.match(repository):
+            return JSONResponse(
+                status_code=422,
+                content={"error": f"Invalid repository '{repository}', it should look like 'username/blueos-core'"},
+            )
+        if not COMMIT_TAG_PATTERN.match(tag):
+            return JSONResponse(status_code=422, content={"error": f"Invalid tag '{tag}'"})
+
+        logger.info(f"Committing running core as {repository}:{tag}...")
+        try:
+            core = await self.client.containers.get("blueos-core")
+            # Pausing would freeze this very service, and bootstrap resets to factory if it stops answering
+            result = await core.commit(repository=repository, tag=tag, pause=False)
+        except Exception as error:
+            logger.critical(f"Error: {type(error)}: {error}")
+            return JSONResponse(status_code=500, content={"error": f"Unable to commit image: {error}"})
+
+        logger.info(f"Committed {repository}:{tag} as {result['Id']}")
+        return JSONResponse(content={"message": f"Committed running BlueOS as {repository}:{tag}", "sha": result["Id"]})
 
     async def delete_version(self, image: str, tag: str) -> Response:
         """Deletes the selected version.
