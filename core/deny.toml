@@ -4,6 +4,14 @@ exclude-dev = true
 [bans]
 multiple-versions = "allow"
 
+# zenoh is pinned to 1.9.0, the version of the zenohd that BlueOS runs, and holds these versions back.
+[advisories]
+ignore = [
+    { id = "RUSTSEC-2026-0041", reason = "lz4_flex 0.10 comes from zenoh-transport 1.9.0, its decompression only compiles with the transport_compression feature of zenoh, which is off" },
+    { id = "RUSTSEC-2024-0436", reason = "paste is unmaintained with no successor, token-cell uses it through zenoh-keyexpr 1.9.0 as a proc-macro, so it only runs at build time" },
+    { id = "RUSTSEC-2024-0449", reason = "unsafe-libyaml is unmaintained with no successor, zenoh-config 1.9.0 uses it through serde_yaml for YAML configuration files, BlueOS gives it JSON5" },
+]
+
 [licenses]
 allow = [
     "Apache-2.0",
