@@ -1,0 +1,5 @@
+# blueos_example_msgs/srv/Level
+# The Query on blueos/v1/example/query/Level. Its request is empty.
+---
+uint8 level
+uint8 max_level

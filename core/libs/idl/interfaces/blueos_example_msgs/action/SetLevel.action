@@ -1,0 +1,11 @@
+# blueos_example_msgs/action/SetLevel
+# The Job type on blueos/v1/example/command/SetLevel: the pump moves to a level one step at a time.
+
+# Goal: the level to reach, at most PumpState.max_level.
+uint8 level
+---
+# Job result: the level the pump reached.
+uint8 level
+---
+# Feedback: the level the pump is at.
+uint8 level
