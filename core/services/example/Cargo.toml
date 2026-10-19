@@ -1,0 +1,26 @@
+[package]
+name = "blueos-example"
+description = "The smallest complete BlueOS Rust service, never shipped"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[[bin]]
+name = "example"
+path = "src/main.rs"
+
+[dependencies]
+blueos-idl = { workspace = true }
+blueos-service = { workspace = true }
+clap = { workspace = true }
+serde = { workspace = true }
+tokio = { workspace = true }
+
+[dev-dependencies]
+blueos-service = { workspace = true, features = ["testing"] }
+tempfile = { workspace = true }
+zenoh = { workspace = true }
+
+[lints]
+workspace = true

@@ -1,0 +1,3 @@
+blueos/v1/example/command/SetLevel: job blueos_example_msgs/action/SetLevel
+blueos/v1/example/query/Level: query blueos_example_msgs/srv/Level
+blueos/v1/example/state/pump: state blueos_example_msgs/msg/PumpState
