@@ -1,0 +1,7 @@
+# blueos_msgs/action/UpdateSettings
+# The Job type every Service serves on blueos/v1/<service>/command/UpdateSettings: replaces its settings document.
+# Its ack is its final status. A Service without settings rejects it.
+
+blueos_msgs/SettingsEnvelope envelope
+---
+---
