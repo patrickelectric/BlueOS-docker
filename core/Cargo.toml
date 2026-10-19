@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["libs/idl", "libs/idl/codegen", "libs/service"]
+members = ["libs/idl", "libs/idl/codegen", "libs/service", "services/example"]
 
 [workspace.package]
 version = "0.1.0"
