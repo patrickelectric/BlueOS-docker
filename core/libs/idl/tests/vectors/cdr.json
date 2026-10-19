@@ -1,0 +1,286 @@
+{
+  "vectors": [
+    {
+      "schema_name": "blueos_example_msgs/action/SetLevel_Feedback",
+      "hex": "0001000000",
+      "decoded": {
+        "level": 0
+      },
+      "category": "default"
+    },
+    {
+      "schema_name": "blueos_example_msgs/action/SetLevel_Goal",
+      "hex": "0001000000",
+      "decoded": {
+        "level": 0
+      },
+      "category": "default"
+    },
+    {
+      "schema_name": "blueos_example_msgs/action/SetLevel_Result",
+      "hex": "0001000000",
+      "decoded": {
+        "level": 0
+      },
+      "category": "default"
+    },
+    {
+      "schema_name": "blueos_example_msgs/msg/PumpState",
+      "hex": "000100000000",
+      "decoded": {
+        "level": 0,
+        "max_level": 0
+      },
+      "category": "default"
+    },
+    {
+      "schema_name": "blueos_example_msgs/srv/Level_Request",
+      "hex": "0001000000",
+      "decoded": {},
+      "category": "default"
+    },
+    {
+      "schema_name": "blueos_example_msgs/srv/Level_Response",
+      "hex": "000100000000",
+      "decoded": {
+        "level": 0,
+        "max_level": 0
+      },
+      "category": "default"
+    },
+    {
+      "schema_name": "blueos_msgs/action/UpdateSettings_Feedback",
+      "hex": "0001000000",
+      "decoded": {},
+      "category": "default"
+    },
+    {
+      "schema_name": "blueos_msgs/action/UpdateSettings_Goal",
+      "hex": "00010000010000000000000000000000",
+      "decoded": {
+        "envelope": {
+          "document_json": "",
+          "fields": []
+        }
+      },
+      "category": "default"
+    },
+    {
+      "schema_name": "blueos_msgs/action/UpdateSettings_Result",
+      "hex": "0001000000",
+      "decoded": {},
+      "category": "default"
+    },
+    {
+      "schema_name": "blueos_msgs/msg/CommandAck",
+      "hex": "000100000000000001000000000000000100000000",
+      "decoded": {
+        "accepted": false,
+        "job_id": "",
+        "reason": "",
+        "status": 0
+      },
+      "category": "default"
+    },
+    {
+      "schema_name": "blueos_msgs/msg/EndpointInfo",
+      "hex": "0001000001000000000000000100000000000000010000000000000001000000000000000100000000",
+      "decoded": {
+        "interface_type": "",
+        "key": "",
+        "kind": "",
+        "name": "",
+        "schema": ""
+      },
+      "category": "default"
+    },
+    {
+      "schema_name": "blueos_msgs/msg/JobFeedback",
+      "hex": "00010000010000000000000000000000",
+      "decoded": {
+        "feedback": [],
+        "job_id": ""
+      },
+      "category": "default"
+    },
+    {
+      "schema_name": "blueos_msgs/msg/JobFeedbackList",
+      "hex": "0001000000000000",
+      "decoded": {
+        "jobs": []
+      },
+      "category": "default"
+    },
+    {
+      "schema_name": "blueos_msgs/msg/JobList",
+      "hex": "0001000000000000",
+      "decoded": {
+        "jobs": []
+      },
+      "category": "default"
+    },
+    {
+      "schema_name": "blueos_msgs/msg/JobResult",
+      "hex": "0001000001000000000000000100000000000000010000000000000000000000",
+      "decoded": {
+        "job": {
+          "job_id": "",
+          "job_type": "",
+          "reason": "",
+          "status": 0
+        },
+        "result": []
+      },
+      "category": "default"
+    },
+    {
+      "schema_name": "blueos_msgs/msg/JobStatus",
+      "hex": "00010000010000000000000001000000000000000100000000",
+      "decoded": {
+        "job_id": "",
+        "job_type": "",
+        "reason": "",
+        "status": 0
+      },
+      "category": "default"
+    },
+    {
+      "schema_name": "blueos_msgs/msg/ServiceInfo",
+      "hex": "000100000100000000000000010000000000000001000000000000000000000000000000",
+      "decoded": {
+        "build": "",
+        "capabilities": [],
+        "endpoints": [],
+        "name": "",
+        "version": ""
+      },
+      "category": "default"
+    },
+    {
+      "schema_name": "blueos_msgs/msg/SettingField",
+      "hex": "00010000010000000000",
+      "decoded": {
+        "path": "",
+        "restart_required": false
+      },
+      "category": "default"
+    },
+    {
+      "schema_name": "blueos_msgs/msg/SettingsEnvelope",
+      "hex": "00010000010000000000000000000000",
+      "decoded": {
+        "document_json": "",
+        "fields": []
+      },
+      "category": "default"
+    },
+    {
+      "schema_name": "foxglove_msgs/msg/Log",
+      "hex": "0001000000000000000000000000000001000000000000000100000000000000010000000000000000000000",
+      "decoded": {
+        "file": "",
+        "level": 0,
+        "line": 0,
+        "message": "",
+        "name": "",
+        "timestamp": {
+          "nanosec": 0,
+          "sec": 0
+        }
+      },
+      "category": "default"
+    },
+    {
+      "schema_name": "foxglove_msgs/msg/Log",
+      "hex": "000100000100000002000000020000000600000068656c6c6f00000005000000746573740000000005000000662e7079000000002a000000",
+      "decoded": {
+        "file": "f.py",
+        "level": 2,
+        "line": 42,
+        "message": "hello",
+        "name": "test",
+        "timestamp": {
+          "nanosec": 2,
+          "sec": 1
+        }
+      },
+      "category": "example",
+      "layout_note": "string file followed by uint32 line"
+    },
+    {
+      "schema_name": "foxglove_msgs/msg/Log",
+      "hex": "0001000009000000080000000300000018000000707974686f6e20636f6d6d6f6e7765616c7468206c6f67000d000000776966692d6d616e6167657200000000080000006d61696e2e70790011000000",
+      "decoded": {
+        "file": "main.py",
+        "level": 3,
+        "line": 17,
+        "message": "python commonwealth log",
+        "name": "wifi-manager",
+        "timestamp": {
+          "nanosec": 8,
+          "sec": 9
+        }
+      },
+      "category": "python_producer",
+      "skip_encode_round_trip": true,
+      "layout_note": "encoded by commonwealth blueos_idl (Python services log sink)"
+    },
+    {
+      "schema_name": "blueos_msgs/msg/CommandAck",
+      "hex": "00010000010000002500000030623565386635632d366630612d346334652d396135322d326631653764336339623130000700000700000071756575656400",
+      "decoded": {
+        "accepted": true,
+        "job_id": "0b5e8f5c-6f0a-4c4e-9a52-2f1e7d3c9b10",
+        "reason": "queued",
+        "status": 7
+      },
+      "category": "example"
+    },
+    {
+      "schema_name": "blueos_msgs/msg/ServiceInfo",
+      "hex": "00010000090000007265636f726465720000000006000000312e302e30000000040000006465760001000000070000007265636f7264000002000000040000006a6f620006000000537461727400000021000000626c75656f732f76312f7265636f726465722f636f6d6d616e642f5374617274000000002b000000626c75656f735f7265636f726465725f6d7367732f616374696f6e2f53746172745265636f7264696e6700001e000000626f6f6c20726f746174655f69665f6163746976650a2d2d2d0a2d2d2d000000060000007374617465000000080000006c6962726172790021000000626c75656f732f76312f7265636f726465722f73746174652f6c696272617279000000002a000000626c75656f735f7265636f726465725f6d7367732f6d73672f5265636f7264696e674c6962726172790000000100000000",
+      "decoded": {
+        "build": "dev",
+        "capabilities": [
+          "record"
+        ],
+        "endpoints": [
+          {
+            "interface_type": "blueos_recorder_msgs/action/StartRecording",
+            "key": "blueos/v1/recorder/command/Start",
+            "kind": "job",
+            "name": "Start",
+            "schema": "bool rotate_if_active\n---\n---"
+          },
+          {
+            "interface_type": "blueos_recorder_msgs/msg/RecordingLibrary",
+            "key": "blueos/v1/recorder/state/library",
+            "kind": "state",
+            "name": "library",
+            "schema": ""
+          }
+        ],
+        "name": "recorder",
+        "version": "1.0.0"
+      },
+      "category": "example"
+    },
+    {
+      "schema_name": "blueos_msgs/msg/SettingField",
+      "hex": "000100000d0000006e6574776f726b2e6d6f64650001",
+      "decoded": {
+        "path": "network.mode",
+        "restart_required": true
+      },
+      "category": "layout",
+      "layout_note": "string path followed by bool restart_required"
+    },
+    {
+      "schema_name": "blueos_example_msgs/srv/Level_Request",
+      "hex": "0001000000",
+      "decoded": {},
+      "category": "empty_struct",
+      "layout_note": "ROS 2 writes one byte for an empty struct (structure_needs_at_least_one_member)"
+    }
+  ]
+}
