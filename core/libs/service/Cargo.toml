@@ -1,0 +1,32 @@
+[package]
+name = "blueos-service"
+description = "What every BlueOS Rust service repeats: CLI, logging, settings, liveliness, info, States, Commands and Jobs"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[features]
+# Helpers for the tests of a service, never enabled in a shipped binary.
+testing = []
+
+[dependencies]
+blueos-idl = { workspace = true }
+clap = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tokio-util = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+uuid = { workspace = true }
+zenoh = { workspace = true }
+
+[dev-dependencies]
+blueos-service = { path = ".", features = ["testing"] }
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["test-util"] }
+
+[lints]
+workspace = true
