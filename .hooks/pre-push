@@ -11,6 +11,7 @@ declare -a EMPTY_PATHS=()
 
 source "$ROOT_DIR/.hooks/lib/common.sh"
 source "$ROOT_DIR/.hooks/lib/python_checks.sh"
+source "$ROOT_DIR/.hooks/lib/rust_checks.sh"
 
 declare -a ISORT_CONFIG_ARGS=(--settings-path "$CORE_DIR/pyproject.toml")
 declare -a BLACK_CONFIG_ARGS=(--config "$CORE_DIR/pyproject.toml")
@@ -92,5 +93,11 @@ run_environment_phase "core" "$CORE_DIR" EMPTY_PATHS EMPTY_PATHS true
 # shellcheck disable=SC1091
 source "$CORE_DIR/.venv/bin/activate"
 run_bootstrap_checks
+
+if [ "$fixing" = true ]; then
+    (cd "$CORE_DIR" && cargo fmt)
+else
+    run_rust_checks
+fi
 
 exit 0
