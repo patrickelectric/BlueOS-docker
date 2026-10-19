@@ -222,6 +222,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "blueos-example"
+version = "0.1.0"
+dependencies = [
+ "blueos-idl",
+ "blueos-service",
+ "clap",
+ "serde",
+ "tempfile",
+ "tokio",
+ "zenoh",
+]
+
+[[package]]
 name = "blueos-idl"
 version = "0.1.0"
 dependencies = [
