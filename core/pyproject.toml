@@ -79,6 +79,11 @@ members = [
   "libs/*",
   "services/*",
 ]
+exclude = [
+  "libs/idl",
+  "libs/service",
+  "services/example",
+]
 
 # ------------------ Tooling Configurations ------------------
 
