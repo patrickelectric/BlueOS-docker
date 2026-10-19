@@ -21,6 +21,7 @@ When identifying issues or problems, if you discover a possible root cause, expl
 **Language:** Python 3.11+ (backend), TypeScript/Vue 2 (frontend)
 **Package Manager:** `uv` (Astral package manager)
 **Architecture:** Dockerized microservices communicating via Zenoh pub/sub and REST APIs
+**Rust services:** a cargo workspace in `core/`, start from `core/services/example` and its `README.md`
 
 **If you don't know something:** Search the codebase, check existing services for patterns, or read `core/tools/nginx/nginx.conf` for service endpoints. Say "I don't know" rather than guessing.
 
