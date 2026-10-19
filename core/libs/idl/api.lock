@@ -1,0 +1,20 @@
+blueos_example_msgs/action/SetLevel_Feedback: uint8 level
+blueos_example_msgs/action/SetLevel_Goal: uint8 level
+blueos_example_msgs/action/SetLevel_Result: uint8 level
+blueos_example_msgs/msg/PumpState: uint8 level, uint8 max_level
+blueos_example_msgs/srv/Level_Request: uint8 structure_needs_at_least_one_member
+blueos_example_msgs/srv/Level_Response: uint8 level, uint8 max_level
+blueos_msgs/action/UpdateSettings_Feedback: uint8 structure_needs_at_least_one_member
+blueos_msgs/action/UpdateSettings_Goal: blueos_msgs/SettingsEnvelope envelope
+blueos_msgs/action/UpdateSettings_Result: uint8 structure_needs_at_least_one_member
+blueos_msgs/msg/CommandAck: bool accepted, string job_id, uint8 status, string reason
+blueos_msgs/msg/EndpointInfo: string kind, string name, string key, string interface_type, string schema
+blueos_msgs/msg/JobFeedback: string job_id, uint8[] feedback
+blueos_msgs/msg/JobFeedbackList: blueos_msgs/JobFeedback[] jobs
+blueos_msgs/msg/JobList: blueos_msgs/JobStatus[] jobs
+blueos_msgs/msg/JobResult: blueos_msgs/JobStatus job, uint8[] result
+blueos_msgs/msg/JobStatus: string job_id, string job_type, uint8 status, string reason
+blueos_msgs/msg/ServiceInfo: string name, string version, string build, string[] capabilities, blueos_msgs/EndpointInfo[] endpoints
+blueos_msgs/msg/SettingField: string path, bool restart_required
+blueos_msgs/msg/SettingsEnvelope: string document_json, blueos_msgs/SettingField[] fields
+foxglove_msgs/msg/Log: builtin_interfaces/Time timestamp, uint8 level, string message, string name, string file, uint32 line
