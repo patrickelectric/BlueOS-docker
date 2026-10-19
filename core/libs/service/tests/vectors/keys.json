@@ -1,0 +1,88 @@
+{
+  "constants": {
+    "key_prefix": "blueos/v1"
+  },
+  "service_liveliness_key": [
+    {
+      "service": "recorder",
+      "expected": "blueos/v1/services/recorder"
+    },
+    {
+      "service": "kraken",
+      "expected": "blueos/v1/services/kraken"
+    }
+  ],
+  "command_key": [
+    {
+      "service": "recorder",
+      "name": "Start",
+      "expected": "blueos/v1/recorder/command/Start"
+    }
+  ],
+  "state_key": [
+    {
+      "service": "recorder",
+      "name": "status",
+      "expected": "blueos/v1/recorder/state/status"
+    }
+  ],
+  "event_key": [
+    {
+      "service": "recorder",
+      "name": "SessionOpened",
+      "expected": "blueos/v1/recorder/event/SessionOpened"
+    }
+  ],
+  "query_key": [
+    {
+      "service": "recorder",
+      "name": "info",
+      "expected": "blueos/v1/recorder/query/info"
+    }
+  ],
+  "jobs_key": [
+    {
+      "service": "recorder",
+      "expected": "blueos/v1/recorder/jobs"
+    }
+  ],
+  "job_feedback_key": [
+    {
+      "service": "recorder",
+      "name": "RepairRecording",
+      "expected": "blueos/v1/recorder/jobs/RepairRecording/feedback"
+    }
+  ],
+  "job_result_key": [
+    {
+      "service": "recorder",
+      "name": "RepairRecording",
+      "expected": "blueos/v1/recorder/jobs/RepairRecording/result"
+    }
+  ],
+  "job_history_key": [
+    {
+      "service": "recorder",
+      "name": "RepairRecording",
+      "expected": "blueos/v1/recorder/jobs/RepairRecording/history"
+    }
+  ],
+  "settings_key": [
+    {
+      "service": "recorder",
+      "expected": "blueos/v1/recorder/settings"
+    }
+  ],
+  "log_key": [
+    {
+      "service": "kraken",
+      "expected": "blueos/v1/kraken/log"
+    }
+  ],
+  "info_query_key": [
+    {
+      "service": "recorder",
+      "expected": "blueos/v1/recorder/query/info"
+    }
+  ]
+}
