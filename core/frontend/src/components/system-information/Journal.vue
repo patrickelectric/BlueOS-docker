@@ -11,9 +11,10 @@
               :item-height="20"
               :items="entries"
               height="700px"
+              data-testid="journal-entrys"
             >
               <template #default="{ item }">
-                <v-list-item>
+                <v-list-item data-testid="journal-entry">
                   <v-list-item-content>
                     <v-list-item-title
                       class="pa-0"
