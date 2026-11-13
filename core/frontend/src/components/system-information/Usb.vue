@@ -28,10 +28,16 @@
         cols="12"
         md="6"
       >
-        <v-card class="ma-3">
+        <v-card
+          class="ma-3"
+          data-testid="usb-bus"
+        >
           <v-list-item two-line>
             <v-list-item-content>
-              <v-list-item-title class="text-h6">
+              <v-list-item-title
+                class="text-h6"
+                data-testid="usb-bus-name"
+              >
                 {{ t`USB Bus ${bus.busNumber}` }}
               </v-list-item-title>
               <v-list-item-subtitle v-if="bus.rootHub?.manufacturer">
@@ -57,7 +63,7 @@
               <template #label="{ item }">
                 <div class="d-flex flex-column py-1">
                   <div class="d-flex align-center">
-                    <span>{{ item.name }}</span>
+                    <span data-testid="usb-device-name">{{ item.name }}</span>
                     <v-chip
                       v-tooltip="item.speed"
                       x-small
