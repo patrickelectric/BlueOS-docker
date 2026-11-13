@@ -1,5 +1,8 @@
 <template>
-  <v-card width="400">
+  <v-card
+    width="400"
+    data-testid="system-condition-card"
+  >
     <v-sheet
       class="v-sheet--offset mx-auto"
       color="primary"
@@ -14,18 +17,23 @@
         <div
           class="transition-swing text-h4 pa-3 white--text"
           align="center"
+          data-testid="system-condition-value"
           v-text="value"
         />
       </v-row>
     </v-sheet>
 
     <v-card-text class="pt-0">
-      <div class="text-h6 font-weight-light mb-2">
+      <div
+        class="text-h6 font-weight-light mb-2"
+        data-testid="system-condition-title"
+      >
         {{ title }}
       </div>
       <!-- eslint-disable vue/no-v-html -->
       <div
         class="subheading font-weight-light grey--text"
+        data-testid="system-condition-text"
         v-html="text"
       />
       <v-divider class="my-2" />
