@@ -12,12 +12,21 @@
         {{ t`Raspberry Firmware` }}
       </v-card-title>
       <v-card-text>
-        <div v-if="raspberry_firmware_error">
+        <div
+          v-if="raspberry_firmware_error"
+          data-testid="raspberry-firmware-error"
+        >
           <span><b> {{ raspberry_firmware_error }} </b> </span>
         </div>
         <div v-else-if="!loading_vcgencmd">
-          <span class="d-block"><b>{{ t`From:` }}</b> {{ raspiberry_firmware_data }} </span>
-          <span class="d-block"><b>{{ t`Version:` }}</b> {{ raspberry_firmware_version }} </span>
+          <span
+            class="d-block"
+            data-testid="raspberry-firmware-date"
+          ><b>{{ t`From:` }}</b> {{ raspiberry_firmware_data }} </span>
+          <span
+            class="d-block"
+            data-testid="raspberry-firmware-version"
+          ><b>{{ t`Version:` }}</b> {{ raspberry_firmware_version }} </span>
         </div>
       </v-card-text>
     </v-card>
@@ -32,11 +41,19 @@
       <v-card-text>
         <div v-if="eeprom_update">
           <div class="d-flex justify-space-between">
-            <span><b>{{ t`Current:` }}</b> {{ raspberry_eeprom_data.current_bootloader }} </span>
-            <span v-if="bootloader_update_available">
+            <span data-testid="bootloader-current">
+              <b>{{ t`Current:` }}</b> {{ raspberry_eeprom_data.current_bootloader }}
+            </span>
+            <span
+              v-if="bootloader_update_available"
+              data-testid="bootloader-available"
+            >
               <b>{{ t`Latest:` }}</b> {{ raspberry_eeprom_data.latest_bootloader }}
             </span>
-            <span v-else>
+            <span
+              v-else
+              data-testid="bootloader-available"
+            >
               <b>{{ t`Up to date` }}</b>
             </span>
           </div>
@@ -46,7 +63,9 @@
         </div>
         <div v-if="eeprom_update">
           <div class="d-flex justify-space-between mb-3">
-            <span><b>{{ t`VL085 Firmware (USB Controller):` }}</b> {{ raspberry_eeprom_data.current_vl085 }} </span>
+            <span data-testid="usb-controller-firmware">
+              <b>{{ t`VL085 Firmware (USB Controller):` }}</b> {{ raspberry_eeprom_data.current_vl085 }}
+            </span>
             <span v-if="vl085_update_available">
               <b>{{ t`Latest:` }}</b> {{ raspberry_eeprom_data.latest_vl085 }}
             </span>
