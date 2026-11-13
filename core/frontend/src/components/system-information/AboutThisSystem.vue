@@ -12,11 +12,18 @@
       <v-list-item
         v-for="(item, i) in info"
         :key="i"
+        data-testid="about-item"
         selectable
       >
         <v-list-item-content>
-          <v-list-item-title v-text="item.title" />
-          <v-list-item-subtitle v-text="item.value" />
+          <v-list-item-title
+            data-testid="about-title"
+            v-text="item.title"
+          />
+          <v-list-item-subtitle
+            data-testid="about-value"
+            v-text="item.value"
+          />
         </v-list-item-content>
       </v-list-item>
     </v-list>
