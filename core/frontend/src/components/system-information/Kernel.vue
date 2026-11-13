@@ -13,9 +13,10 @@
               :item-height="20"
               :items="messages"
               height="700px"
+              data-testid="kernel-messages"
             >
               <template #default="{ item }">
-                <v-list-item>
+                <v-list-item data-testid="kernel-message">
                   <!--
                     TODO: text-wrap is not possible until https://github.com/vuetifyjs/vuetify/issues/11755 gets fixed
                   -->
