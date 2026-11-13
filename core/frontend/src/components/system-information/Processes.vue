@@ -17,6 +17,7 @@
     <template #top>
       <v-text-field
         v-model="search"
+        data-testid="process-search"
         clearable
         :label="t`Search`"
         class="mx-4"
@@ -32,6 +33,7 @@
           :key="header.text"
           v-model="filterHeader"
           :value="header.value"
+          :data-testid="`process-column-${header.value}`"
           class="shrink mr-5"
           :label="header.text"
         />
