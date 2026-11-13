@@ -2,6 +2,7 @@
   <v-card
     class="ma-3"
     min-width="340"
+    data-testid="network-card"
   >
     <v-list-item two-line>
       <v-list-item-content>
@@ -23,6 +24,7 @@
           v-for="(ip, i) in network.ips"
           :key="i"
           class="pa-0 text-h6 text-center"
+          data-testid="network-ip"
           :style="ip.includes(':') && !show_ipv6 ? 'cursor: pointer; filter:blur(0.5em)' : ''"
           @click="show_ipv6 = true"
         >
@@ -37,7 +39,9 @@
           mdi-network
         </v-icon>
       </v-list-item-icon>
-      <v-list-item-subtitle>{{ network.is_up ? t`Enabled` : t`Disabled` }}</v-list-item-subtitle>
+      <v-list-item-subtitle data-testid="network-state">
+        {{ network.is_up ? t`Enabled` : t`Disabled` }}
+      </v-list-item-subtitle>
     </v-list-item>
 
     <v-list-item>
@@ -49,6 +53,7 @@
       <v-list-item-subtitle>{{ t`MAC:` }}</v-list-item-subtitle>
       <v-list-item-subtitle
         class="text-right"
+        data-testid="network-mac"
         :style="show_mac ? '' : 'cursor: pointer; filter:blur(0.5em)'"
         @click="show_mac = true"
       >
@@ -63,7 +68,10 @@
         </v-icon>
       </v-list-item-icon>
       <v-list-item-subtitle>{{ t`Packets received:` }}</v-list-item-subtitle>
-      <v-list-item-subtitle class="text-right">
+      <v-list-item-subtitle
+        class="text-right"
+        data-testid="network-packets-received"
+      >
         {{ t`${network.packets_received} / ${network.total_packets_received} total` }}
       </v-list-item-subtitle>
     </v-list-item>
@@ -75,7 +83,10 @@
         </v-icon>
       </v-list-item-icon>
       <v-list-item-subtitle>{{ t`Packets transmitted:` }}</v-list-item-subtitle>
-      <v-list-item-subtitle class="text-right">
+      <v-list-item-subtitle
+        class="text-right"
+        data-testid="network-packets-transmitted"
+      >
         {{ t`${network.packets_transmitted} / ${network.total_packets_transmitted} total` }}
       </v-list-item-subtitle>
     </v-list-item>
@@ -87,7 +98,10 @@
         </v-icon>
       </v-list-item-icon>
       <v-list-item-subtitle>{{ t`Bytes received:` }}</v-list-item-subtitle>
-      <v-list-item-subtitle class="text-right">
+      <v-list-item-subtitle
+        class="text-right"
+        data-testid="network-bytes-received"
+      >
         {{ t`${formatSize(network.received_B)} / ${formatSize(network.total_received_B)} total` }}
       </v-list-item-subtitle>
     </v-list-item>
@@ -99,7 +113,10 @@
         </v-icon>
       </v-list-item-icon>
       <v-list-item-subtitle>{{ t`Bytes transmitted:` }}</v-list-item-subtitle>
-      <v-list-item-subtitle class="text-right">
+      <v-list-item-subtitle
+        class="text-right"
+        data-testid="network-bytes-transmitted"
+      >
         {{ t`${formatSize(network.transmitted_B)} / ${formatSize(network.total_transmitted_B)} total` }}
       </v-list-item-subtitle>
     </v-list-item>
