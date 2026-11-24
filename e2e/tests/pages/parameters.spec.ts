@@ -2,6 +2,7 @@
 // How to run: BLUEOS_URL=http://<ip> bun --cwd e2e e2e parameters.spec.ts
 import { Locator, Page } from '@playwright/test'
 
+import { parameterRow, parameterValue, readParameter, searchParameter, waitParameters } from '@/fixtures/parameters'
 import { expect, test } from '@/fixtures/vehicle'
 
 // 5 seconds above the autopilot firmware test, the parameter list is slower to arrive
@@ -17,33 +18,6 @@ function restoreLater(search: string, name: string, value: number): void {
     await searchParameter(page, search)
     await writeValue(page, name, value)
   }
-}
-
-async function waitParameters(page: Page): Promise<void> {
-  // Save is only enabled once every parameter and its metadata are loaded
-  await expect(page.getByTestId('parameters-download-button'), 'the parameters should load')
-    .toBeEnabled({ timeout: BACKEND_TIMEOUT })
-}
-
-async function searchParameter(page: Page, search: string): Promise<void> {
-  await page.getByTestId('parameter-search').fill(search)
-  await expect(page.getByTestId('parameters-table').locator('mark').first(), `"${search}" should match something`)
-    .toBeVisible()
-}
-
-function parameterRow(page: Page, name: string): Locator {
-  const cell = page.getByTestId('parameter-name').filter({ hasText: new RegExp(`^\\s*${name}\\s*$`) })
-  return page.getByRole('row').filter({ has: cell })
-}
-
-function parameterValue(page: Page, name: string): Locator {
-  return parameterRow(page, name).getByTestId('parameter-value')
-}
-
-async function readValue(page: Page, name: string): Promise<number> {
-  const value = parameterValue(page, name)
-  await expect(value, `${name} should be listed`).toBeVisible()
-  return parseFloat(await value.innerText())
 }
 
 async function openParameter(page: Page, name: string): Promise<void> {
@@ -121,8 +95,7 @@ test.describe.serial('Parameters', () => {
       await (await download).saveAs(file)
     })
 
-    await searchParameter(page, search)
-    const original = await readValue(page, name)
+    const original = await readParameter(page, name)
     const changed = original + 5
 
     await test.step(`change ${name} from ${original} to ${changed} Hz`, async () => {
