@@ -96,3 +96,27 @@ export async function openAutopilot(page: Page): Promise<void> {
   await expect(page.getByTestId('autopilot-board-name'), 'the current board should be known')
     .toHaveText(/^\s*(?!Unknown)\S/, { timeout: BACKEND_TIMEOUT })
 }
+
+export async function sitlFrame(page: Page): Promise<string> {
+  await openPanel(page, 'sitl-configuration-panel')
+  const select = page.getByTestId('sitl-frame-select')
+  await expect(select, 'the SITL frame should be known').toBeEnabled({ timeout: BACKEND_TIMEOUT })
+  const selection = select.locator('xpath=ancestor::div[contains(@class, "v-select")]').locator('.v-select__selection')
+  return (await selection.innerText()).trim()
+}
+
+export async function setSitlFrame(page: Page, frame: string): Promise<void> {
+  if (await sitlFrame(page) === frame) {
+    return
+  }
+  const frames = await openSelect(page, 'sitl-frame-select')
+  const option = frames.getByRole('option', { name: frame, exact: true })
+  // The list only renders more items as it scrolls
+  await expect(async () => {
+    await frames.evaluate((menu) => menu.scrollTo(0, menu.scrollHeight))
+    await expect(option).toBeAttached({ timeout: 1000 })
+  }, `the ${frame} frame should exist`).toPass({ timeout: BACKEND_TIMEOUT })
+  await option.click()
+  await expect(page.getByText('SITL frame set, autopilot restarted'), 'the autopilot should restart')
+    .toBeVisible({ timeout: BACKEND_TIMEOUT })
+}
