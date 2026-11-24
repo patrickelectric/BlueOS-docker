@@ -120,3 +120,18 @@ export async function setSitlFrame(page: Page, frame: string): Promise<void> {
   await expect(page.getByText('SITL frame set, autopilot restarted'), 'the autopilot should restart')
     .toBeVisible({ timeout: BACKEND_TIMEOUT })
 }
+
+// The click that restarts, from the Autopilot page or a Reboot Autopilot button
+export async function restartWith(page: Page, button: Locator): Promise<void> {
+  const restarted = page.waitForResponse(
+    (response) => response.request().method() === 'POST' && response.url().endsWith('/restart'),
+    { timeout: BACKEND_TIMEOUT },
+  )
+  await button.click()
+  expect((await restarted).ok(), 'the autopilot should restart').toBeTruthy()
+}
+
+export async function restartAutopilot(page: Page): Promise<void> {
+  await openAutopilot(page)
+  await restartWith(page, page.getByTestId('restart-autopilot-button'))
+}
