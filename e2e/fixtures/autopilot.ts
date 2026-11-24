@@ -90,3 +90,9 @@ export async function installFirmware(page: Page): Promise<void> {
   await expect(page.getByTestId('install-firmware-result'), 'the success message should be shown')
     .toContainText('Successfully installed new firmware')
 }
+
+export async function openAutopilot(page: Page): Promise<void> {
+  await page.goto('/vehicle/autopilot')
+  await expect(page.getByTestId('autopilot-board-name'), 'the current board should be known')
+    .toHaveText(/^\s*(?!Unknown)\S/, { timeout: BACKEND_TIMEOUT })
+}
