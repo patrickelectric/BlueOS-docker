@@ -101,6 +101,13 @@ export default {
       let timeout = 0
       this.state = states.CALIBRATION_STARTED
       const ack_listener = mavlink2rest.startListening('COMMAND_ACK').setCallback((message) => {
+        if (message.header.system_id !== autopilot_data.system_id || message.header.component_id !== 1) {
+          return
+        }
+        // The vehicle answers everyone, only take the answer to the COMMAND_LONG above
+        if (message.message.target_system !== 255 || message.message.target_component !== 1) {
+          return
+        }
         if (message?.message?.command?.type === 'MAV_CMD_PREFLIGHT_CALIBRATION') {
           clearTimeout(timeout)
           ack_listener.discard()
