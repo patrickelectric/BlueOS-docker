@@ -2,6 +2,7 @@
   <v-dialog
     v-model="dialog"
     width="600"
+    :persistent="calibrating"
   >
     <template #activator="{ on, attrs }">
       <v-btn
