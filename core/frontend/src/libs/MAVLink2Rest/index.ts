@@ -172,6 +172,10 @@ class Mavlink2RestManager {
           if (header.system_id !== autopilot_data.system_id || header.component_id !== 1) {
             return
           }
+          // The vehicle answers everyone, only take the answers to sendCommandLong
+          if (message.target_system !== 255 || message.target_component !== 1) {
+            return
+          }
           if (message.command.type === command) {
             resolve(message)
           }
