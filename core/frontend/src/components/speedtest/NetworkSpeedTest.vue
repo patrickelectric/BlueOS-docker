@@ -33,7 +33,7 @@
                   mdi-download
                 </v-icon>
               </v-list-item-icon>
-              <v-list-item-subtitle>
+              <v-list-item-subtitle data-testid="network-speed-test-download">
                 {{ download_speed ? download_speed.toFixed(2) : '...' }} Mbps
               </v-list-item-subtitle>
             </v-list-item>
@@ -46,7 +46,7 @@
                   mdi-upload
                 </v-icon>
               </v-list-item-icon>
-              <v-list-item-subtitle>
+              <v-list-item-subtitle data-testid="network-speed-test-upload">
                 {{ upload_speed ? upload_speed.toFixed(2) : '...' }} Mbps
               </v-list-item-subtitle>
             </v-list-item>
@@ -59,7 +59,7 @@
                   mdi-timer-outline
                 </v-icon>
               </v-list-item-icon>
-              <v-list-item-subtitle>
+              <v-list-item-subtitle data-testid="network-speed-test-latency">
                 {{ latency_ms ? latency_ms.toFixed(0) : '...' }} ms
               </v-list-item-subtitle>
             </v-list-item>
@@ -74,12 +74,14 @@
         <div
           class="transition-swing pa-6"
           align="center"
+          data-testid="network-speed-test-state"
           v-text="state"
         />
         <v-card-actions class="justify-center">
           <v-btn
             color="primary"
             :disabled="!allow_test_start"
+            data-testid="network-speed-test-start"
             @click="start()"
           >
             <v-icon>
