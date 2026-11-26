@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process'
 
-import { APIRequestContext, expect } from '@playwright/test'
+import { APIRequestContext, expect, Locator, Page } from '@playwright/test'
 
 const API = '/version-chooser/v1.0/version'
 
@@ -51,4 +51,11 @@ export function remoteVersions(repository: string, tags: string[]): object {
     last_modified: new Date(Date.UTC(2026, 0, 31 - index)).toISOString(),
   }))
   return { local: [], remote, error: null }
+}
+
+export function localCard(page: Page, name: string): Locator {
+  const [repository, tag] = name.split(':')
+  return page.getByTestId('version-card-local')
+    .filter({ has: page.getByTestId('version-card-tag').and(page.getByText(tag, { exact: true })) })
+    .filter({ has: page.getByTestId('version-card-repository').and(page.getByText(repository, { exact: true })) })
 }
