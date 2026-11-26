@@ -7,7 +7,9 @@ import { Page, TestInfo } from '@playwright/test'
 
 import { BACKEND_TIMEOUT } from '@/fixtures/ui'
 import { expect, test } from '@/fixtures/vehicle'
-import { remoteVersions } from '@/fixtures/version-chooser'
+import {
+  currentVersion, imageName, localCard, remoteVersions, RESTART_TIMEOUT, setVersion, switchTo,
+} from '@/fixtures/version-chooser'
 
 const REPOSITORY = 'bluerobotics/blueos-core'
 // Latest stable, its release ships the core image of every architecture
@@ -16,6 +18,8 @@ const RELEASE = '1.4.7'
 const ASSET_ARCHITECTURE: Record<string, string> = { amd64: 'amd64', arm64: 'arm64-v8', arm: 'arm-v7' }
 // The backend gives the load 15 minutes
 const LOAD_TIMEOUT = 15 * 60_000
+// A core image from docker save, like a CI artifact, its frontend needs the version chooser test ids to switch back
+const CORE_IMAGE = process.env.BLUEOS_CORE_IMAGE
 // One more than a page of the remote list, sorted from the newest
 const REMOTE_TAGS = [
   'alpha', 'bravo', 'charlie', 'delta', 'echo', 'foxtrot', 'golf', 'hotel', 'india', 'juliett', 'kilo',
@@ -168,4 +172,59 @@ test('Version chooser shows the release notes of a version', async ({ page }) =>
   await expect(card.getByTestId('release-notes')).toHaveText('Notes from the e2e')
   await card.getByTestId('version-card-hide-notes').click()
   await expect(card.getByTestId('release-notes'), 'the notes should close').toBeHidden()
+})
+
+test.describe('Version chooser with an uploaded core', () => {
+  test.skip(!CORE_IMAGE, 'BLUEOS_CORE_IMAGE should point to a core image made with docker save')
+  let original = ''
+
+  test.afterEach(async ({ request }) => {
+    if (original && await currentVersion(request).catch(() => '') !== original) {
+      await setVersion(request, original)
+    }
+  })
+
+  test('uploads the core, switches to it, switches back and deletes it', async ({ page }) => {
+    test.setTimeout(LOAD_TIMEOUT + 4 * RESTART_TIMEOUT)
+    // Major Tom is installed or updated before a switch, the vehicle extensions are left alone
+    await page.route('https://blueos.cloud/major_tom/install/', (route) => route.abort())
+    const file = CORE_IMAGE as string
+    const uploaded = imageName(file)
+    original = await currentVersion(page.request)
+    expect(uploaded, 'the image should not be the running one').not.toBe(original)
+    const card = localCard(page, uploaded)
+    const upload = page.getByTestId('version-chooser-upload')
+
+    await page.goto('/tools/version-chooser')
+    await test.step(`${original} is running`, async () => {
+      await expect(localCard(page, original).getByTestId('version-card-running')).toBeVisible({ timeout: BACKEND_TIMEOUT })
+      await expect(page.getByTestId('version-card-running'), 'only one version should run').toHaveCount(1)
+    })
+
+    await test.step(`upload ${uploaded}`, async () => {
+      await upload.getByTestId('version-chooser-upload-file').setInputFiles(file)
+      const load = page.waitForResponse('**/version-chooser/v1.0/version/load/', { timeout: LOAD_TIMEOUT })
+      await upload.getByTestId('version-chooser-upload-button').click()
+      await expect(upload.getByTestId('version-chooser-upload-progress'), 'the upload should start').toBeVisible()
+      await expect(upload.getByTestId('version-chooser-upload-decompressing'), 'the upload should reach 100%')
+        .toBeVisible({ timeout: LOAD_TIMEOUT })
+      expect((await load).status(), 'the vehicle should load the image').toBe(200)
+      await expect(upload.getByTestId('version-chooser-upload-button'), 'the upload should be available again')
+        .toBeVisible()
+      await expect(card, `${uploaded} should be listed without a reload`).toBeVisible({ timeout: BACKEND_TIMEOUT })
+    })
+
+    await test.step(`switch to ${uploaded}`, () => switchTo(page, uploaded))
+    await test.step(`switch back to ${original}`, () => switchTo(page, original))
+
+    await test.step(`delete ${uploaded}`, async () => {
+      const deleted = page.waitForResponse('**/version-chooser/v1.0/version/delete')
+      await card.getByTestId('version-card-delete').click()
+      expect((await deleted).status(), 'the vehicle should delete the image').toBe(200)
+      await expect(card, `${uploaded} should leave the list`).toHaveCount(0)
+      await page.reload()
+      await expect(localCard(page, original), 'the local versions should load').toBeVisible({ timeout: BACKEND_TIMEOUT })
+      await expect(card, `${uploaded} should not come back`).toHaveCount(0)
+    })
+  })
 })
