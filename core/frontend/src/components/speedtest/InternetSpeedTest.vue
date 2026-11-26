@@ -10,6 +10,7 @@
           absolute
           opacity="0.92"
           :value="internet_offline"
+          data-testid="internet-speed-test-offline"
         >
           {{ t`Waiting for internet connection..` }}
         </v-overlay>
@@ -30,7 +31,7 @@
                   mdi-server-network
                 </v-icon>
               </v-list-item-icon>
-              <v-list-item-subtitle>
+              <v-list-item-subtitle data-testid="internet-speed-test-server">
                 {{ server_origin }}
               </v-list-item-subtitle>
             </v-list-item>
@@ -43,7 +44,7 @@
                   mdi-home-circle-outline
                 </v-icon>
               </v-list-item-icon>
-              <v-list-item-subtitle>
+              <v-list-item-subtitle data-testid="internet-speed-test-provider">
                 {{ client_origin }}
                 <v-list-item-icon
                   v-if="client_isp_rating"
@@ -72,7 +73,7 @@
                   mdi-download
                 </v-icon>
               </v-list-item-icon>
-              <v-list-item-subtitle>
+              <v-list-item-subtitle data-testid="internet-speed-test-download">
                 {{ download_speed ? download_speed.toFixed(2) : '...' }} Mbps
               </v-list-item-subtitle>
             </v-list-item>
@@ -85,7 +86,7 @@
                   mdi-upload
                 </v-icon>
               </v-list-item-icon>
-              <v-list-item-subtitle>
+              <v-list-item-subtitle data-testid="internet-speed-test-upload">
                 {{ upload_speed ? upload_speed.toFixed(2) : '...' }} Mbps
               </v-list-item-subtitle>
             </v-list-item>
@@ -98,19 +99,23 @@
                   mdi-timer-outline
                 </v-icon>
               </v-list-item-icon>
-              <v-list-item-subtitle>
+              <v-list-item-subtitle data-testid="internet-speed-test-latency">
                 {{ latency_ms ? latency_ms.toFixed(0) : '...' }} ms
               </v-list-item-subtitle>
             </v-list-item>
           </v-list>
         </v-col>
-        <p class="text-center">
+        <p
+          class="text-center"
+          data-testid="internet-speed-test-message"
+        >
           {{ message }}
         </p>
         <v-card-actions class="justify-center">
           <v-btn
             color="primary"
             :disabled="started"
+            data-testid="internet-speed-test-start"
             @click="start()"
           >
             <v-icon>
