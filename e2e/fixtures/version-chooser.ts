@@ -41,3 +41,14 @@ export async function waitNetwork(request: APIRequestContext): Promise<void> {
   }, { message: 'the vehicle network should settle', timeout: RESTART_TIMEOUT, intervals: [5_000] })
     .toBeGreaterThanOrEqual(6)
 }
+
+// Docker Hub is not what is tested, the remote list is made up, from the newest to the oldest
+export function remoteVersions(repository: string, tags: string[]): object {
+  const remote = tags.map((tag, index) => ({
+    repository,
+    tag,
+    sha: `sha256:${index}`,
+    last_modified: new Date(Date.UTC(2026, 0, 31 - index)).toISOString(),
+  }))
+  return { local: [], remote, error: null }
+}
