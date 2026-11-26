@@ -154,3 +154,18 @@ test('Version chooser retries the remote versions', async ({ page }) => {
   await expect(error, 'the error should go away').toBeHidden()
   await expect(remote.getByTestId('version-card-remote')).toHaveCount(10)
 })
+
+test('Version chooser shows the release notes of a version', async ({ page }) => {
+  // Only the official images have release notes, whatever the vehicle runs
+  await page.route(REMOTE_VERSIONS, (route) => route.fulfill({ json: remoteVersions(REPOSITORY, [RELEASE]) }))
+  const notes = { body_html: '<p>Notes from the e2e</p>', html_url: 'https://github.com/bluerobotics/BlueOS' }
+  const release = `https://api.github.com/repos/bluerobotics/BlueOS/releases/tags/${RELEASE}`
+  await page.route(release, (route) => route.fulfill({ json: notes }))
+  const card = page.getByTestId('version-chooser-remote').getByTestId('version-card-remote')
+  await page.goto('/tools/version-chooser')
+
+  await card.getByTestId('version-card-show-notes').click({ timeout: BACKEND_TIMEOUT })
+  await expect(card.getByTestId('release-notes')).toHaveText('Notes from the e2e')
+  await card.getByTestId('version-card-hide-notes').click()
+  await expect(card.getByTestId('release-notes'), 'the notes should close').toBeHidden()
+})
