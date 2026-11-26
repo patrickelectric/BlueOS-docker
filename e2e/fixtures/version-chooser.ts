@@ -59,3 +59,14 @@ export function localCard(page: Page, name: string): Locator {
     .filter({ has: page.getByTestId('version-card-tag').and(page.getByText(tag, { exact: true })) })
     .filter({ has: page.getByTestId('version-card-repository').and(page.getByText(repository, { exact: true })) })
 }
+
+export async function switchTo(page: Page, name: string): Promise<void> {
+  const card = localCard(page, name)
+  await card.getByTestId('version-card-apply').click()
+  await expect(page.getByText('Switching to new core...'), 'the page should wait for the new core').toBeVisible()
+  // The page reloads by itself once the new core answers
+  await expect(card.getByTestId('version-card-running'), `${name} should be running`)
+    .toBeVisible({ timeout: RESTART_TIMEOUT })
+  expect(await currentVersion(page.request), `the vehicle should run ${name}`).toBe(name)
+  await waitNetwork(page.request)
+}
