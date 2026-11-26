@@ -133,3 +133,24 @@ test('Version chooser pages and searches the remote versions', async ({ page }) 
     await expect(tags, 'only golf should be left').toHaveText(['golf'])
   })
 })
+
+test('Version chooser retries the remote versions', async ({ page }) => {
+  // The list loads again when the internet check finishes, so it fails until the retry
+  let failing = true
+  await page.route(REMOTE_VERSIONS, (route) => {
+    const repository = route.request().url().split('/available/')[1]
+    const error = { local: [], remote: [], error: 'Docker Hub is out for lunch' }
+    return route.fulfill({ json: failing ? error : remoteVersions(repository, REMOTE_TAGS) })
+  })
+  const remote = page.getByTestId('version-chooser-remote')
+  await page.goto('/tools/version-chooser')
+
+  const error = remote.getByTestId('version-chooser-remote-error')
+  await expect(error, 'the error should be shown')
+    .toContainText('Docker Hub is out for lunch', { timeout: BACKEND_TIMEOUT })
+  await expect(remote.getByTestId('version-card-remote')).toHaveCount(0)
+  failing = false
+  await error.getByTestId('version-chooser-remote-retry').click()
+  await expect(error, 'the error should go away').toBeHidden()
+  await expect(remote.getByTestId('version-card-remote')).toHaveCount(10)
+})
