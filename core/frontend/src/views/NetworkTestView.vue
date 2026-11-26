@@ -13,6 +13,7 @@
       <v-tab
         v-for="page in pages"
         :key="page.value"
+        :data-testid="`${page.value}-tab`"
       >
         {{ page.title }}
         <v-icon>{{ page.icon }}</v-icon>
