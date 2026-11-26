@@ -26,3 +26,18 @@ export async function setVersion(request: APIRequestContext, name: string): Prom
   await expect.poll(() => currentVersion(request).catch(() => ''), { timeout: RESTART_TIMEOUT, intervals: [5_000] })
     .toBe(name)
 }
+
+// cable_guy redoes the vehicle network when the core starts, a switch in the middle of it can lose the DHCP address
+export async function waitNetwork(request: APIRequestContext): Promise<void> {
+  let last = ''
+  let stable = 0
+  // Settled once the interfaces stay the same for 30 seconds, longer than the DHCP server discovery
+  await expect.poll(async () => {
+    const response = await request.get('/cable-guy/v1.0/ethernet').catch(() => undefined)
+    const interfaces = response?.ok() ? await response.text() : ''
+    stable = interfaces && interfaces === last ? stable + 1 : 0
+    last = interfaces
+    return stable
+  }, { message: 'the vehicle network should settle', timeout: RESTART_TIMEOUT, intervals: [5_000] })
+    .toBeGreaterThanOrEqual(6)
+}
