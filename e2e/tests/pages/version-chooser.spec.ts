@@ -5,7 +5,9 @@ import { pipeline } from 'node:stream/promises'
 
 import { Page, TestInfo } from '@playwright/test'
 
+import { BACKEND_TIMEOUT } from '@/fixtures/ui'
 import { expect, test } from '@/fixtures/vehicle'
+import { remoteVersions } from '@/fixtures/version-chooser'
 
 const REPOSITORY = 'bluerobotics/blueos-core'
 // Latest stable, its release ships the core image of every architecture
@@ -14,6 +16,11 @@ const RELEASE = '1.4.7'
 const ASSET_ARCHITECTURE: Record<string, string> = { amd64: 'amd64', arm64: 'arm64-v8', arm: 'arm-v7' }
 // The backend gives the load 15 minutes
 const LOAD_TIMEOUT = 15 * 60_000
+// One more than a page of the remote list, sorted from the newest
+const REMOTE_TAGS = [
+  'alpha', 'bravo', 'charlie', 'delta', 'echo', 'foxtrot', 'golf', 'hotel', 'india', 'juliett', 'kilo',
+]
+const REMOTE_VERSIONS = /\/version-chooser\/v1\.0\/version\/available\/(?!local)/
 
 // The image is about 500MB, it is downloaded once and kept in e2e/.cache
 async function releaseImage(page: Page, testInfo: TestInfo): Promise<string> {
@@ -87,5 +94,42 @@ test(`Version chooser uploads the ${RELEASE} image and deletes it`, async ({ pag
     await expect(page.getByTestId('version-card-local').first(), 'the local versions should load')
       .toBeVisible({ timeout: 60_000 })
     await expect(local, `${RELEASE} should not come back`).toHaveCount(0)
+  })
+})
+
+test('Version chooser pages and searches the remote versions', async ({ page }) => {
+  await page.route(REMOTE_VERSIONS, (route) => {
+    const repository = route.request().url().split('/available/')[1]
+    return route.fulfill({ json: remoteVersions(repository, REMOTE_TAGS) })
+  })
+  const remote = page.getByTestId('version-chooser-remote')
+  const tags = remote.getByTestId('version-card-tag')
+  await page.goto('/tools/version-chooser')
+
+  await test.step('the first page has the 10 newest versions', async () => {
+    // The remote list waits for the vehicle internet check, slow after a boot
+    await expect(tags).toHaveText(REMOTE_TAGS.slice(0, 10), { timeout: BACKEND_TIMEOUT })
+    await expect(remote.getByTestId('version-card-download-and-apply')).toHaveCount(10)
+  })
+
+  await test.step('the second page has the rest', async () => {
+    await remote.getByTestId('version-chooser-pagination').getByRole('button', { name: /2/ }).click()
+    await expect(tags).toHaveText(REMOTE_TAGS.slice(10))
+  })
+
+  const repository = remote.getByTestId('version-chooser-repository')
+  await test.step('the official images have no search', async () => {
+    await repository.fill('bluerobotics/blueos-core')
+    await repository.press('Enter')
+    await expect(remote.getByTestId('version-card-repository').first()).toHaveText('bluerobotics/blueos-core')
+    await expect(remote.getByTestId('version-chooser-search')).toHaveCount(0)
+  })
+
+  await test.step('another repository can be searched', async () => {
+    await repository.fill('e2e/blueos-core')
+    await repository.press('Enter')
+    await expect(remote.getByTestId('version-card-repository').first()).toHaveText('e2e/blueos-core')
+    await remote.getByTestId('version-chooser-search').fill('golf')
+    await expect(tags, 'only golf should be left').toHaveText(['golf'])
   })
 })
