@@ -1,0 +1,97 @@
+name: PR labeler (compute)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  compute:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Compute labels
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const AREAS = {
+              'area: core': [
+                'core/services/',
+                'core/libs/',
+                'core/tools/',
+                'core/compose/',
+                'core/configuration/',
+                'core/Dockerfile',
+                'core/pyproject.toml',
+                'core/start-blueos-core',
+                'core/run-service.sh',
+              ],
+              'area: frontend': ['core/frontend/'],
+              'area: bootstrap': ['bootstrap/'],
+            }
+
+            const SIZE_IGNORED = [
+              /(^|\/)bun\.lockb?$/,
+              /(^|\/)poetry\.lock$/,
+              /(^|\/)uv\.lock$/,
+              /(^|\/)package-lock\.json$/,
+              /(^|\/)yarn\.lock$/,
+              /\.pot?$/,
+            ]
+
+            const SIZES = [
+              ['size: XS', 10],
+              ['size: S', 100],
+              ['size: M', 500],
+              ['size: L', 1000],
+              ['size: XL', Infinity],
+            ]
+
+            function areaLabels(files) {
+              return Object.entries(AREAS)
+                .filter(([, prefixes]) =>
+                  files.some(file => prefixes.some(prefix => file.filename.startsWith(prefix))))
+                .map(([label]) => label)
+            }
+
+            function sizeLabel(files) {
+              const lines = files
+                .filter(file => !SIZE_IGNORED.some(pattern => pattern.test(file.filename)))
+                .reduce((total, file) => total + file.additions + file.deletions, 0)
+              return SIZES.find(([, limit]) => lines <= limit)[0]
+            }
+
+            function branchLabel(baseRef) {
+              const match = baseRef.match(/^(\d+\.\d+)(-dev)?$/)
+              return match ? [`branch: ${match[1]}`] : []
+            }
+
+            const pr = context.payload.pull_request
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              ...context.repo,
+              pull_number: pr.number,
+              per_page: 100,
+            })
+
+            const labels = [
+              ...areaLabels(files),
+              sizeLabel(files),
+              ...branchLabel(pr.base.ref),
+            ]
+            core.info(`Labels: ${labels.join(', ')}`)
+
+            const fs = require('fs')
+            fs.mkdirSync('out', { recursive: true })
+            fs.writeFileSync('out/labels.json', JSON.stringify({
+              pr: pr.number,
+              sha: pr.head.sha,
+              labels,
+            }))
+
+      - name: Upload labels
+        uses: actions/upload-artifact@v7
+        with:
+          name: pr-labels
+          path: out/labels.json
