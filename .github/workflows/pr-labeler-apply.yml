@@ -1,0 +1,60 @@
+name: PR labeler (apply)
+
+on:
+  workflow_run:
+    workflows: ["PR labeler (compute)"]
+    types: [completed]
+
+permissions:
+  actions: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  apply:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download labels
+        uses: actions/download-artifact@v8
+        with:
+          name: pr-labels
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - name: Apply labels
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const MANAGED = /^(size: (XS|S|M|L|XL)|area: (core|frontend|bootstrap)|branch: \d+\.\d+)$/
+
+            const data = JSON.parse(require('fs').readFileSync('labels.json', 'utf8'))
+            const run = context.payload.workflow_run
+
+            // Never trust the artifact: it has to match the run and the PR head.
+            if (data.sha !== run.head_sha) {
+              core.setFailed('Artifact sha does not match workflow run')
+              return
+            }
+            const { data: pr } = await github.rest.pulls.get({
+              ...context.repo,
+              pull_number: data.pr,
+            })
+            if (pr.head.sha !== run.head_sha) {
+              core.setFailed(`PR #${data.pr} head moved, skipping`)
+              return
+            }
+
+            const wanted = data.labels.filter(label => MANAGED.test(label))
+            const current = pr.labels.map(label => label.name).filter(label => MANAGED.test(label))
+
+            const toRemove = current.filter(label => !wanted.includes(label))
+            const toAdd = wanted.filter(label => !current.includes(label))
+
+            for (const name of toRemove) {
+              await github.rest.issues.removeLabel({ ...context.repo, issue_number: pr.number, name })
+            }
+            if (toAdd.length > 0) {
+              await github.rest.issues.addLabels({ ...context.repo, issue_number: pr.number, labels: toAdd })
+            }
+            core.info(`Added: ${toAdd.join(', ') || 'none'}; removed: ${toRemove.join(', ') || 'none'}`)
